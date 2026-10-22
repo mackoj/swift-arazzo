@@ -22,9 +22,10 @@ cannot express.
 - **Simple conditions** (`$statusCode == 200 && $response.body#/id != null`) parsed and evaluated
   with the spec's comparison semantics; regex and **JSONPath** criteria evaluated natively; a plug-in
   point for XPath.
-- **A complete JSONPath engine** (`JSONPath` module, pure Swift, no Foundation): RFC 9535 — passing
-  all 715 cases of the official compliance test suite — and the Jayway dialect, passing the full
-  Sextant / Jayway test suite. Used for `jsonpath` criteria, selectors and payload replacements.
+- **A complete JSONPath engine**, [swift-jsonpath](https://github.com/mackoj/swift-jsonpath) (pure Swift,
+  no Foundation): RFC 9535 — passing all 715 cases of the official compliance test suite — and the
+  Jayway dialect, passing the full Sextant / Jayway test suite. Used for `jsonpath` criteria,
+  selectors and payload replacements, and re-exported by `ArazzoKit`.
 - **Validation**: ~18 built-in rules (MUST → error, SHOULD → warning) reporting JSON Pointer paths,
   and an API for custom rules.
 - **Resolution helpers**: reusable components, effective parameters/actions after workflow-level
@@ -50,8 +51,7 @@ Requires Swift 6.0+. Platforms: Linux, macOS 13+, iOS 16+, tvOS 16+, watchOS 9+,
 
 | Product         | Depends on                         | Purpose                                  |
 |-----------------|------------------------------------|------------------------------------------|
-| `JSONPath`      | Swift stdlib only                  | JSONPath (RFC 9535 + Jayway), `JSONValue`, JSON parser, JSON Pointer |
-| `ArazzoKit`     | `JSONPath`, FoundationEssentials   | Models, expressions, evaluation, validation |
+| `ArazzoKit`     | [swift-jsonpath](https://github.com/mackoj/swift-jsonpath), FoundationEssentials | Models, expressions, evaluation, validation |
 | `ArazzoKitYAML` | `ArazzoKit`, Yams                  | YAML decoding/encoding                   |
 
 ## Usage
@@ -242,6 +242,9 @@ your own runtime to the protocol to evaluate against live state.
 
 ### JSONPath on its own
 
+The engine lives in [swift-jsonpath](https://github.com/mackoj/swift-jsonpath) and is re-exported by
+`ArazzoKit`, so `JSONValue`, `JSONPath`, `JSONPointer` and the Codable bridge are available directly:
+
 ```swift
 import JSONPath
 
@@ -314,13 +317,10 @@ swift test
 
 The test suite decodes, round-trips and validates the examples published in
 [OAI/Arazzo-Specification](https://github.com/OAI/Arazzo-Specification) (Apache-2.0) plus a 1.1
-fixture covering every new feature. The JSONPath engine runs the
+fixture covering every new feature. The JSONPath engine's own tests — the
 [JSONPath Compliance Test Suite](https://github.com/jsonpath-standard/jsonpath-compliance-test-suite)
-(BSD-2-Clause, all 715 cases) and the complete test suite of
-[Sextant](https://github.com/KittyMac/Sextant) (MIT; itself derived from Jayway JsonPath), ported to
-swift-testing — 300+ tests. Where Sextant's tests exercise Sextant-only APIs (tuples, in-place
-`JsonElement` mutation) they are adapted to the equivalent `JSONValue` operations, and each
-adaptation is commented in the test file. Validation finds a few genuine mistakes in the upstream
+and the ported [Sextant](https://github.com/KittyMac/Sextant) suite — live in
+[swift-jsonpath](https://github.com/mackoj/swift-jsonpath). Validation finds a few genuine mistakes in the upstream
 examples (an expression missing `.outputs.` in `bnpl-arazzo.yaml`, a misspelled source description
 in the 1.1.0 specification's root example); the tests assert they are reported.
 
