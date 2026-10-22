@@ -18,7 +18,7 @@ let package = Package(
         .library(name: "ArazzoKitYAML", targets: ["ArazzoKitYAML"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mackoj/swift-jsonpath.git", branch: "main"),
+        .package(url: "https://github.com/mackoj/swift-jsonpath.git", from: "0.0.1"),
         .package(url: "https://github.com/jpsim/Yams.git", "5.1.0"..<"7.0.0"),
     ],
     targets: [
