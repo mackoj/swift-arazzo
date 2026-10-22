@@ -1,0 +1,3 @@
+# The JSONPath Compliance Test Suite: one 232 KB JSON file with very long lines.
+# Search it explicitly when needed.
+Tests/JSONPathTests/Fixtures/cts.json

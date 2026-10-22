@@ -1,0 +1,2 @@
+# xcsift settings, for `swift build 2>&1 | xcsift` and `swift test 2>&1 | xcsift`: https://github.com/ldomaradzki/xcsift
+format = "toon"
