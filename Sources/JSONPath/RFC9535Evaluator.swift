@@ -26,12 +26,14 @@ struct RFC9535Evaluator {
         switch node.value {
         case .object(let object):
             for (key, child) in object {
-                descend(selectors, from: Node(location: node.location?.appending(.name(key)), value: child), into: &results)
+                descend(
+                    selectors, from: Node(location: node.location?.appending(.name(key)), value: child), into: &results)
             }
         case .array(let array):
             for (index, child) in array.enumerated() {
                 descend(
-                    selectors, from: Node(location: node.location?.appending(.index(index)), value: child), into: &results)
+                    selectors, from: Node(location: node.location?.appending(.index(index)), value: child),
+                    into: &results)
             }
         default:
             break
@@ -179,7 +181,8 @@ extension JSONValue {
         case (.array(let a), .array(let b)):
             return a.count == b.count && zip(a, b).allSatisfy { $0.isDeepEqual(to: $1) }
         case (.object(let a), .object(let b)):
-            return a.count == b.count && a.allSatisfy { key, value in b[key].map { value.isDeepEqual(to: $0) } ?? false }
+            return a.count == b.count
+                && a.allSatisfy { key, value in b[key].map { value.isDeepEqual(to: $0) } ?? false }
         default:
             return self == other
         }
@@ -217,7 +220,8 @@ enum RFC9535Functions {
         }
         guard signature.parameters.count == call.arguments.count else {
             throw JSONPath.ParseError(
-                message: "\(call.name)() expects \(signature.parameters.count) argument(s), got \(call.arguments.count)",
+                message:
+                    "\(call.name)() expects \(signature.parameters.count) argument(s), got \(call.arguments.count)",
                 position: position)
         }
         for (parameter, argument) in zip(signature.parameters, call.arguments) {
@@ -370,7 +374,9 @@ enum IRegexp {
                     return nil  // not an I-Regexp escape
                 }
             case "[":
-                if inClass { output += "\\[" } else {
+                if inClass {
+                    output += "\\["
+                } else {
                     inClass = true
                     output += "["
                     if index + 1 < scalars.count, scalars[index + 1] == "^" {
@@ -388,13 +394,17 @@ enum IRegexp {
             case ".":
                 output += inClass ? "." : "[^\\n\\r]"
             case "(":
-                if inClass { output += "\\(" } else {
+                if inClass {
+                    output += "\\("
+                } else {
                     if index + 1 < scalars.count, scalars[index + 1] == "?" { return nil }  // no groups extensions
                     depth += 1
                     output += "(?:"
                 }
             case ")":
-                if inClass { output += "\\)" } else {
+                if inClass {
+                    output += "\\)"
+                } else {
                     depth -= 1
                     if depth < 0 { return nil }
                     output += ")"

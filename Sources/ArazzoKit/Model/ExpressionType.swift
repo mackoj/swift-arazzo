@@ -135,7 +135,8 @@ extension Arazzo.SelectorType: Codable {
         if let container = try? decoder.singleValueContainer(), let raw = try? container.decode(String.self) {
             guard let kind = Arazzo.ExpressionType.Kind(rawValue: raw) else {
                 throw DecodingError.dataCorruptedError(
-                    in: container, debugDescription: "Selector type '\(raw)' must be one of jsonpath, xpath, jsonpointer.")
+                    in: container,
+                    debugDescription: "Selector type '\(raw)' must be one of jsonpath, xpath, jsonpointer.")
             }
             self.init(kind)
         } else {

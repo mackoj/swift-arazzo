@@ -167,7 +167,9 @@ struct JSONTextParser {
         if index < bytes.count, bytes[index] == UInt8(ascii: "e") || bytes[index] == UInt8(ascii: "E") {
             isInteger = false
             index += 1
-            if index < bytes.count, bytes[index] == UInt8(ascii: "+") || bytes[index] == UInt8(ascii: "-") { index += 1 }
+            if index < bytes.count, bytes[index] == UInt8(ascii: "+") || bytes[index] == UInt8(ascii: "-") {
+                index += 1
+            }
             guard index < bytes.count, isDigit(bytes[index]) else { throw fail("invalid exponent") }
             while index < bytes.count, isDigit(bytes[index]) { index += 1 }
         }
@@ -216,7 +218,8 @@ struct JSONTextParser {
                 case UInt8(ascii: "u"):
                     let high = try parseHex4()
                     if (0xD800...0xDBFF).contains(high) {
-                        guard index + 1 < bytes.count, bytes[index] == UInt8(ascii: "\\"), bytes[index + 1] == UInt8(ascii: "u")
+                        guard index + 1 < bytes.count, bytes[index] == UInt8(ascii: "\\"),
+                            bytes[index + 1] == UInt8(ascii: "u")
                         else { throw fail("unpaired surrogate") }
                         index += 2
                         let low = try parseHex4()

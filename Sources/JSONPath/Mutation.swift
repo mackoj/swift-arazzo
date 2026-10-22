@@ -154,7 +154,9 @@ extension JSONValue {
                     array.remove(at: index)
                 }
             } else {
-                guard array.indices.contains(index) else { throw MutationError(message: "Index \(index) is out of bounds") }
+                guard array.indices.contains(index) else {
+                    throw MutationError(message: "Index \(index) is out of bounds")
+                }
                 try update(&array[index], rest, body)
             }
             value = .array(array)

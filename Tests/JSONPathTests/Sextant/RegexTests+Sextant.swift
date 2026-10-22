@@ -22,7 +22,9 @@ struct PatternFlagTestPorted {
 
 @Suite("Sextant: RegexpEvaluator")
 struct RegexpEvaluatorTestPorted {
-    func check(_ regex: String, _ value: JaywayValue, _ expected: Bool, sourceLocation: SourceLocation = #_sourceLocation) {
+    func check(
+        _ regex: String, _ value: JaywayValue, _ expected: Bool, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         let slash = regex.lastIndex(of: "/")!
         let pattern = String(regex[regex.index(after: regex.startIndex)..<slash])
         let flags = String(regex[regex.index(after: slash)...])
@@ -46,6 +48,7 @@ struct RegexpEvaluatorTestPorted {
     }
 
     @Test func regexInFilters() throws {
-        expectCount(#"[{"v": 9979}, {"v": "true"}, {"v": false}, {"v": null}]"#, "$[?(@.v =~ /9.*9|true|fa.*se|null/)]", 3)
+        expectCount(
+            #"[{"v": 9979}, {"v": "true"}, {"v": false}, {"v": null}]"#, "$[?(@.v =~ /9.*9|true|fa.*se|null/)]", 3)
     }
 }

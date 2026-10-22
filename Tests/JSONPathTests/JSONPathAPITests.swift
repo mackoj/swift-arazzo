@@ -4,12 +4,14 @@ import Testing
 @Suite("JSON parser")
 struct JSONParserTests {
     @Test func parsesAndPreservesOrder() throws {
-        let value = try JSONValue(parsing: #"{"z": 1, "a": [true, false, null], "m": {"x": 1.5, "y": "line\n\u00e9\ud834\udd1e"}}"#)
+        let value = try JSONValue(
+            parsing: #"{"z": 1, "a": [true, false, null], "m": {"x": 1.5, "y": "line\n\u00e9\ud834\udd1e"}}"#)
         #expect(value.objectValue?.keys == ["z", "a", "m"])
         #expect(value["a"] == [true, false, nil])
         #expect(value["m"]?["x"] == .number(1.5))
         #expect(value["m"]?["y"] == "line\n\u{e9}\u{1D11E}")
-        #expect(value.jsonString == "{\"z\":1,\"a\":[true,false,null],\"m\":{\"x\":1.5,\"y\":\"line\\n\u{e9}\u{1D11E}\"}}")
+        #expect(
+            value.jsonString == "{\"z\":1,\"a\":[true,false,null],\"m\":{\"x\":1.5,\"y\":\"line\\n\u{e9}\u{1D11E}\"}}")
     }
 
     @Test func numbers() throws {
@@ -20,7 +22,10 @@ struct JSONParserTests {
         #expect(try JSONValue(parsing: "18446744073709551615") == .number(18_446_744_073_709_551_615.0))
     }
 
-    @Test(arguments: ["", "01", "1.", ".5", "+1", "[1,]", "{\"a\":1,}", "'a'", "\"\u{01}\"", "\"\\x\"", "\"\\ud800\"", "nul", "[1] 2", "{\"a\" 1}"])
+    @Test(arguments: [
+        "", "01", "1.", ".5", "+1", "[1,]", "{\"a\":1,}", "'a'", "\"\u{01}\"", "\"\\x\"", "\"\\ud800\"", "nul", "[1] 2",
+        "{\"a\" 1}",
+    ])
     func rejectsInvalidJSON(_ text: String) {
         #expect(throws: JSONValue.ParseError.self) { try JSONValue(parsing: text) }
     }
@@ -44,7 +49,10 @@ struct JSONPathAPITests {
     @Test func nodesValuesAndPaths() throws {
         let path = try JSONPath("$.store.book[?@.price < 10].author")
         #expect(try path.values(in: Self.store) == ["Nigel Rees", "Herman Melville"])
-        #expect(try path.paths(in: Self.store).map(\.description) == ["$['store']['book'][0]['author']", "$['store']['book'][2]['author']"])
+        #expect(
+            try path.paths(in: Self.store).map(\.description) == [
+                "$['store']['book'][0]['author']", "$['store']['book'][2]['author']",
+            ])
         #expect(try path.paths(in: Self.store).first?.jsonPointer.description == "/store/book/0/author")
         #expect(try path.matches(Self.store))
         #expect(try JSONPath("$.nope").firstValue(in: Self.store) == nil)
@@ -81,8 +89,12 @@ struct JSONPathAPITests {
     }
 
     @Test func descriptions() throws {
-        #expect(try JSONPath("$.store.book[0,1]['author', \"price\"]").description == "$['store']['book'][0, 1]['author', 'price']")
-        #expect(try JSONPath("$..book[?@.price<10 && (@.isbn || !@.author)]").description == "$..['book'][?@['price'] < 10 && (@['isbn'] || !@['author'])]")
+        #expect(
+            try JSONPath("$.store.book[0,1]['author', \"price\"]").description
+                == "$['store']['book'][0, 1]['author', 'price']")
+        #expect(
+            try JSONPath("$..book[?@.price<10 && (@.isbn || !@.author)]").description
+                == "$..['book'][?@['price'] < 10 && (@['isbn'] || !@['author'])]")
         #expect(try JSONPath("$.a.b", dialect: .jayway).description == "$['a']['b']")
         #expect(try JSONPath("$.a").isSingular)
         #expect(try !JSONPath("$.a[*]").isSingular)

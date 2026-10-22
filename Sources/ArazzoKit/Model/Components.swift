@@ -39,7 +39,8 @@ extension Arazzo.Components: Codable {
     public init(from decoder: any Decoder) throws {
         try decoder.ensureNoUnknownKeys(CodingKeys.self, objectName: "Components Object")
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        inputs = try container.decodeIfPresent(OrderedDictionary<String, Arazzo.JSONSchema>.self, forKey: .inputs) ?? [:]
+        inputs =
+            try container.decodeIfPresent(OrderedDictionary<String, Arazzo.JSONSchema>.self, forKey: .inputs) ?? [:]
         parameters =
             try container.decodeIfPresent(OrderedDictionary<String, Arazzo.Parameter>.self, forKey: .parameters) ?? [:]
         successActions =
@@ -130,12 +131,14 @@ extension Arazzo.Components {
         guard let ref = schema.ref else { return schema }
         let prefix = "#/components/inputs/"
         guard ref.hasPrefix(prefix) else {
-            throw Arazzo.ResolutionError(reference: ref, message: "only local #/components/inputs references are resolved")
+            throw Arazzo.ResolutionError(
+                reference: ref, message: "only local #/components/inputs references are resolved")
         }
         let encodedName = String(ref.dropFirst(prefix.count))
         let name = (try? JSONPointer("/" + encodedName).tokens.first) ?? encodedName
         guard let resolved = inputs[name] else {
-            throw Arazzo.ResolutionError(reference: ref, message: "no input schema named '\(encodedName)' in components")
+            throw Arazzo.ResolutionError(
+                reference: ref, message: "no input schema named '\(encodedName)' in components")
         }
         return resolved
     }

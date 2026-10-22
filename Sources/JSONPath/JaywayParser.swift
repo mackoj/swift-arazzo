@@ -403,7 +403,9 @@ struct JaywayParser {
         let start = position
         while let c = current, c.properties.isAlphabetic { position += 1 }
         let word = text(start..<position).uppercased()
-        if let op = JSONPath.ComparisonOperator.wordOperators[word], current.map({ !$0.properties.isAlphabetic }) ?? true {
+        if let op = JSONPath.ComparisonOperator.wordOperators[word],
+            current.map({ !$0.properties.isAlphabetic }) ?? true
+        {
             return op
         }
         position = start
@@ -426,8 +428,9 @@ struct JaywayParser {
             return try parseJSONLiteral()
         case "-", "0"..."9":
             position += 1
-            while let d = current, d.properties.numericType != nil || d == "." || d == "e" || d == "E"
-                || ((d == "+" || d == "-") && (scalars[position - 1] == "e" || scalars[position - 1] == "E"))
+            while let d = current,
+                d.properties.numericType != nil || d == "." || d == "e" || d == "E"
+                    || ((d == "+" || d == "-") && (scalars[position - 1] == "e" || scalars[position - 1] == "E"))
             {
                 position += 1
             }
@@ -441,7 +444,9 @@ struct JaywayParser {
             if consume("null") { return .literal(.null, raw: "null") }
             // RFC 9535 style function call: name(args)
             let nameStart = position
-            while let d = current, d.properties.isAlphabetic || d == "_" || (position > nameStart && d.properties.numericType != nil) {
+            while let d = current,
+                d.properties.isAlphabetic || d == "_" || (position > nameStart && d.properties.numericType != nil)
+            {
                 position += 1
             }
             if position > nameStart, current == "(" {

@@ -209,7 +209,9 @@ struct RFC9535Parser {
         guard position + 4 <= scalars.count else { throw error("Invalid unicode escape") }
         var value: UInt32 = 0
         for _ in 0..<4 {
-            guard let digit = scalars[position].properties.isASCIIHexDigit ? UInt32(String(scalars[position]), radix: 16) : nil
+            guard
+                let digit = scalars[position].properties.isASCIIHexDigit
+                    ? UInt32(String(scalars[position]), radix: 16) : nil
             else { throw error("Invalid unicode escape") }
             value = value * 16 + digit
             position += 1

@@ -137,7 +137,9 @@ func expectCount(_ json: String, _ path: String, _ expected: Int?, sourceLocatio
     #expect(actual == expected, "\(path) → \(actual.map(String.init) ?? "nil") results", sourceLocation: sourceLocation)
 }
 
-func expectPaths(_ json: String, _ path: String, _ expected: [String], sourceLocation: SourceLocation = #_sourceLocation) {
+func expectPaths(
+    _ json: String, _ path: String, _ expected: [String], sourceLocation: SourceLocation = #_sourceLocation
+) {
     guard let actual = sextantPaths(json, path) else {
         Issue.record("Query \(path) failed", sourceLocation: sourceLocation)
         return

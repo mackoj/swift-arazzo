@@ -18,7 +18,8 @@ struct ComplianceTestSuite {
     }
 
     static let cases: [Case] = {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/cts.json")
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent(
+            "Fixtures/cts.json")
         let suite = try! JSONValue(parsing: Data(contentsOf: url))
         return suite["tests"]!.arrayValue!.map { test in
             let results: [[JSONValue]] =

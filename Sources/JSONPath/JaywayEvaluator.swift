@@ -263,7 +263,9 @@ struct JaywayEvaluator {
             guard let value = resolve(query, current: current) else { return nil }
             return JaywayValue(value)
         case .function(let call):
-            guard let value = (try? RFC9535Functions.evaluateValue(call, current: current, root: root, jayway: self)) ?? nil
+            guard
+                let value = (try? RFC9535Functions.evaluateValue(call, current: current, root: root, jayway: self))
+                    ?? nil
             else { return nil }
             return JaywayValue(value)
         }
@@ -351,7 +353,9 @@ enum JaywayValue {
         return literalValue == other.literalValue ? 0 : nil
     }
 
-    static func evaluate(_ left: JaywayValue, _ op: JSONPath.ComparisonOperator, _ right: JaywayValue)
+    static func evaluate(
+        _ left: JaywayValue, _ op: JSONPath.ComparisonOperator, _ right: JaywayValue
+    )
         -> JaywayEvaluator.Truth
     {
         func truth(_ value: Bool) -> JaywayEvaluator.Truth { value ? .true : .false }
@@ -369,7 +373,11 @@ enum JaywayValue {
         case .greaterOrEqual: return truth(left.compare(right).map { $0 >= 0 } ?? false)
         case .regex:
             let (patternValue, subject): (JaywayValue, JaywayValue)
-            if case .pattern = left { (patternValue, subject) = (left, right) } else { (patternValue, subject) = (right, left) }
+            if case .pattern = left {
+                (patternValue, subject) = (left, right)
+            } else {
+                (patternValue, subject) = (right, left)
+            }
             guard case .pattern(let pattern, let flags) = patternValue else { return .error }
             guard let regex = JaywayRegex.compile(pattern, flags: flags) else { return .error }
             guard let text = subject.regexSubject else { return .false }

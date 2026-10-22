@@ -6,7 +6,8 @@ struct ValidationTests {
     typealias Step = Arazzo.Step
 
     static func step(
-        _ id: String, _ target: Step.Target = .operationId("op"), parameters: [Arazzo.ReusableOr<Arazzo.Parameter>] = [],
+        _ id: String, _ target: Step.Target = .operationId("op"),
+        parameters: [Arazzo.ReusableOr<Arazzo.Parameter>] = [],
         successCriteria: [Arazzo.Criterion]? = nil, onSuccess: [Arazzo.ReusableOr<Arazzo.SuccessAction>] = [],
         onFailure: [Arazzo.ReusableOr<Arazzo.FailureAction>] = [],
         outputs: OrderedDictionary<String, Arazzo.OutputValue> = [:], dependsOn: [String] = []
@@ -27,7 +28,10 @@ struct ValidationTests {
         #expect(issues.contains(rule: "workflows", path: "/workflows", severity: .error))
 
         let duplicates = makeDocument(
-            sources: [.init(name: "api", url: "a.yaml"), .init(name: "api", url: "b.yaml"), .init(name: "bad name", url: "c.yaml")],
+            sources: [
+                .init(name: "api", url: "a.yaml"), .init(name: "api", url: "b.yaml"),
+                .init(name: "bad name", url: "c.yaml"),
+            ],
             workflows: [
                 Self.workflow("w", steps: [Self.step("s"), Self.step("s")]),
                 Self.workflow("w", steps: []),
@@ -42,7 +46,9 @@ struct ValidationTests {
 
     @Test func operationIdsMustBeQualifiedWithMultipleSources() {
         let document = makeDocument(
-            sources: [.init(name: "a", url: "a.yaml", type: .openapi), .init(name: "b", url: "b.yaml", type: .openapi)],
+            sources: [
+                .init(name: "a", url: "a.yaml", type: .openapi), .init(name: "b", url: "b.yaml", type: .openapi),
+            ],
             workflows: [
                 Self.workflow(steps: [
                     Self.step("plain", .operationId("getPet")),
@@ -62,14 +68,18 @@ struct ValidationTests {
 
     @Test func workflowReferences() {
         let document = makeDocument(
-            sources: [.init(name: "api", url: "a.yaml", type: .openapi), .init(name: "flows", url: "f.yaml", type: .arazzo)],
+            sources: [
+                .init(name: "api", url: "a.yaml", type: .openapi), .init(name: "flows", url: "f.yaml", type: .arazzo),
+            ],
             workflows: [
-                Self.workflow("a", steps: [
-                    Self.step("local", .workflowId("b")),
-                    Self.step("missing", .workflowId("nope")),
-                    Self.step("remote", .workflowId("$sourceDescriptions.flows.other")),
-                    Self.step("wrongType", .workflowId("$sourceDescriptions.api.other")),
-                ], dependsOn: ["b"]),
+                Self.workflow(
+                    "a",
+                    steps: [
+                        Self.step("local", .workflowId("b")),
+                        Self.step("missing", .workflowId("nope")),
+                        Self.step("remote", .workflowId("$sourceDescriptions.flows.other")),
+                        Self.step("wrongType", .workflowId("$sourceDescriptions.api.other")),
+                    ], dependsOn: ["b"]),
                 Self.workflow("b", steps: [Self.step("s")], dependsOn: ["a"]),
             ])
         let issues = document.validate()
@@ -84,14 +94,16 @@ struct ValidationTests {
         let document = makeDocument(
             workflows: [
                 Self.workflow(steps: [
-                    Self.step("op", parameters: [
-                        .inline(.init(name: "id", value: 1)),  // missing `in`
-                        .inline(.init(name: "q", in: .query, value: 1)),
-                        .inline(.init(name: "q", in: .query, value: 2)),  // duplicate
-                        .inline(.init(name: "Auth", in: .header, value: 1)),
-                        .inline(.init(name: "auth", in: .header, value: 2)),  // duplicate (case-insensitive header)
-                        .inline(.init(name: "all", in: .querystring, value: "a=b")),
-                    ]),
+                    Self.step(
+                        "op",
+                        parameters: [
+                            .inline(.init(name: "id", value: 1)),  // missing `in`
+                            .inline(.init(name: "q", in: .query, value: 1)),
+                            .inline(.init(name: "q", in: .query, value: 2)),  // duplicate
+                            .inline(.init(name: "Auth", in: .header, value: 1)),
+                            .inline(.init(name: "auth", in: .header, value: 2)),  // duplicate (case-insensitive header)
+                            .inline(.init(name: "all", in: .querystring, value: "a=b")),
+                        ]),
                     Self.step("sub", .workflowId("wf2"), parameters: [.inline(.init(name: "input", value: 1))]),
                     Self.step(
                         "act",
@@ -110,7 +122,9 @@ struct ValidationTests {
         #expect(issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters/4", severity: .error))
         #expect(issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters", severity: .warning))
         #expect(!issues.contains(rule: "parameters", path: "/workflows/0/steps/1/parameters/0/in"))
-        #expect(issues.contains(rule: "parameters", path: "/workflows/0/steps/2/onSuccess/0/parameters/0/in", severity: .error))
+        #expect(
+            issues.contains(
+                rule: "parameters", path: "/workflows/0/steps/2/onSuccess/0/parameters/0/in", severity: .error))
     }
 
     @Test func reusableReferences() {
@@ -128,15 +142,19 @@ struct ValidationTests {
                             .reusable(.init(.parameters, "missing")),
                             .reusable(.init(.successActions, "done")),
                         ],
-                        onSuccess: [.reusable(.init(.successActions, "done")), .reusable(.init(.failureActions, "jump"))],
+                        onSuccess: [
+                            .reusable(.init(.successActions, "done")), .reusable(.init(.failureActions, "jump")),
+                        ],
                         onFailure: [.reusable(.init(.failureActions, "jump"))])
                 ])
             ],
             components: components)
         let issues = document.validate()
         #expect(!issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters/0/reference"))
-        #expect(issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters/1/reference", severity: .error))
-        #expect(issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters/2/reference", severity: .error))
+        #expect(
+            issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters/1/reference", severity: .error))
+        #expect(
+            issues.contains(rule: "parameters", path: "/workflows/0/steps/0/parameters/2/reference", severity: .error))
         #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onSuccess/1/reference", severity: .error))
         // The reusable failure action targets a step that does not exist in this workflow.
         #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onFailure/0", severity: .error))
@@ -148,7 +166,9 @@ struct ValidationTests {
                 Self.workflow(steps: [
                     Self.step(
                         "a",
-                        onSuccess: [.inline(.goto(name: "next", .step("b"))), .inline(.goto(name: "next", .step("zzz")))],
+                        onSuccess: [
+                            .inline(.goto(name: "next", .step("b"))), .inline(.goto(name: "next", .step("zzz"))),
+                        ],
                         onFailure: [
                             .inline(.retry(name: "r", after: -1, limit: -2)),
                             .inline(.goto(name: "g", .workflow("nope"))),
@@ -158,7 +178,8 @@ struct ValidationTests {
             ])
         let issues = document.validate()
         #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onSuccess/1/stepId", severity: .error))
-        #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onSuccess/1", severity: .error))  // duplicate name
+        // duplicate name
+        #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onSuccess/1", severity: .error))
         #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onFailure/0/retryAfter", severity: .error))
         #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onFailure/0/retryLimit", severity: .error))
         #expect(issues.contains(rule: "actions", path: "/workflows/0/steps/0/onFailure/1/workflowId", severity: .error))
@@ -203,12 +224,18 @@ struct ValidationTests {
                         "s",
                         successCriteria: [
                             .init(context: expression("$response.body"), condition: "$[?(@.a ==)]", type: .jsonPath),
-                            .init(context: expression("$response.body"), condition: "$.items.length()", type: .jsonPath),
+                            .init(
+                                context: expression("$response.body"), condition: "$.items.length()", type: .jsonPath),
                             .init(
                                 context: expression("$response.body"), condition: "$.items.length()",
-                                type: .expressionType(.init(kind: .jsonPath, version: .draftGoessnerDispatchJSONPath00))),
-                            .init(context: expression("$response.body"), condition: "$[?@.id == {$inputs.id}]", type: .jsonPath),
-                            .init(context: expression("$response.body"), condition: "$[?count(@.pets) > 0]", type: .jsonPath),
+                                type: .expressionType(.init(kind: .jsonPath, version: .draftGoessnerDispatchJSONPath00))
+                            ),
+                            .init(
+                                context: expression("$response.body"), condition: "$[?@.id == {$inputs.id}]",
+                                type: .jsonPath),
+                            .init(
+                                context: expression("$response.body"), condition: "$[?count(@.pets) > 0]",
+                                type: .jsonPath),
                         ],
                         outputs: ["bad": .selector(selector)])
                 ])
@@ -239,7 +266,8 @@ struct ValidationTests {
                                 .inline(.init(name: "a", in: .query, value: "$steps.second.outputs.token")),  // forward
                                 .inline(.init(name: "b", in: .query, value: "$steps.ghost.outputs.x")),  // unknown step
                                 .inline(.init(name: "c", in: .query, value: "$inputs.pasword")),  // undeclared input
-                                .inline(.init(name: "d", in: .query, value: "Bearer {$steps.second.token}")),  // broken template
+                                // broken template
+                                .inline(.init(name: "d", in: .query, value: "Bearer {$steps.second.token}")),
                                 .inline(.init(name: "e", in: .query, value: "$sourceDescriptions.nope.url")),
                                 .inline(.init(name: "f", in: .query, value: "$response.body.id")),  // dotted
                             ]),
@@ -302,7 +330,9 @@ struct ValidationTests {
     }
 
     @Test func selfURIAndNames() {
-        var document = makeDocument(workflows: [Self.workflow(steps: [Self.step("s", outputs: ["bad key": "$statusCode"])])])
+        var document = makeDocument(workflows: [
+            Self.workflow(steps: [Self.step("s", outputs: ["bad key": "$statusCode"])])
+        ])
         document.selfURI = "https://example.com/a.yaml#frag"
         document.components.parameters["bad/key"] = .init(name: "p", in: .query, value: 1)
         let issues = document.validate()
@@ -313,7 +343,10 @@ struct ValidationTests {
 
     @Test func inputsReferencesResolve() {
         let document = makeDocument(
-            workflows: [Arazzo.Workflow(workflowId: "wf", inputs: .reference("#/components/inputs/missing"), steps: [Self.step("s")])])
+            workflows: [
+                Arazzo.Workflow(
+                    workflowId: "wf", inputs: .reference("#/components/inputs/missing"), steps: [Self.step("s")])
+            ])
         #expect(document.validate().contains(rule: "inputs", path: "/workflows/0/inputs/$ref", severity: .error))
     }
 
