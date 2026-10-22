@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// Metadata about the workflows contained within the Arazzo Description.
     public struct Info: Hashable, Sendable, VendorExtendable {

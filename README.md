@@ -20,7 +20,11 @@ cannot express.
 - **Runtime expressions** parsed into a typed AST following the spec's ABNF, plus embedded
   `{$expression}` templates.
 - **Simple conditions** (`$statusCode == 200 && $response.body#/id != null`) parsed and evaluated
-  with the spec's comparison semantics; regex criteria evaluated; a plug-in point for JSONPath / XPath.
+  with the spec's comparison semantics; regex and **JSONPath** criteria evaluated natively; a plug-in
+  point for XPath.
+- **A complete JSONPath engine** (`JSONPath` module, pure Swift, no Foundation): RFC 9535 — passing
+  all 715 cases of the official compliance test suite — and the Jayway dialect, passing the full
+  Sextant / Jayway test suite. Used for `jsonpath` criteria, selectors and payload replacements.
 - **Validation**: ~18 built-in rules (MUST → error, SHOULD → warning) reporting JSON Pointer paths,
   and an API for custom rules.
 - **Resolution helpers**: reusable components, effective parameters/actions after workflow-level
@@ -46,7 +50,8 @@ Requires Swift 6.0+. Platforms: Linux, macOS 13+, iOS 16+, tvOS 16+, watchOS 9+,
 
 | Product         | Depends on                         | Purpose                                  |
 |-----------------|------------------------------------|------------------------------------------|
-| `ArazzoKit`     | Swift stdlib, FoundationEssentials | Models, expressions, evaluation, validation |
+| `JSONPath`      | Swift stdlib only                  | JSONPath (RFC 9535 + Jayway), `JSONValue`, JSON parser, JSON Pointer |
+| `ArazzoKit`     | `JSONPath`, FoundationEssentials   | Models, expressions, evaluation, validation |
 | `ArazzoKitYAML` | `ArazzoKit`, Yams                  | YAML decoding/encoding                   |
 
 ## Usage
@@ -209,10 +214,58 @@ step.successCriteria?.areSatisfied(in: context)
 Simple conditions follow the specification: string comparisons are case-insensitive, numeric
 strings are coerced for numeric comparisons, `null` only equals itself, and any evaluation error
 makes the criterion fail (`isSatisfied`) — use `evaluate` to get the error. `regex` criteria are
-evaluated with Swift `Regex`. ArazzoKit has no JSONPath or XPath engine; provide one by conforming
-to `Arazzo.QueryEvaluator`. `Arazzo.Selector` evaluation supports JSON Pointer out of the box.
-`EvaluationContext` is a ready-made `RuntimeExpressionResolver`; conform your own runtime to the
-protocol to evaluate against live state.
+evaluated with Swift `Regex`.
+
+`jsonpath` criteria, Selector Objects and payload replacement targets use the built-in JSONPath
+engine. The Expression Type version picks the dialect: `rfc9535` (the default) is strict RFC 9535;
+`draft-goessner-dispatch-jsonpath-00` uses the Goessner-derived Jayway dialect (`[?(...)]`, `in`,
+`=~`, `.length()`, ...). A selector matching several nodes yields an array of their values.
+
+```swift
+let criterion = Arazzo.Criterion(context: try .init("$response.body"),
+                                 condition: "$.pets[?@.status == '{$inputs.status}']", type: .jsonPath)
+criterion.isSatisfied(in: context)
+
+let payload = try step.requestBody?.resolvedPayload(in: context)   // expressions, selectors and replacements applied
+```
+
+> **Note:** under RFC 9535 a filter applied to an object tests the object's *members*, so the
+> specification's own example `$[?count(@.pets) > 0]` never matches `{"pets": [...]}` – write
+> `$.pets[0]` (or use the Goessner version, where Jayway semantics test the object itself).
+
+XPath needs a plug-in: conform to `Arazzo.QueryEvaluator` (returning `true` from `supports` only for
+the languages you handle). `EvaluationContext` is a ready-made `RuntimeExpressionResolver`; conform
+your own runtime to the protocol to evaluate against live state.
+
+### JSONPath on its own
+
+```swift
+import JSONPath
+
+let document = try JSONValue(parsing: json)                    // order-preserving JSON parser
+let path = try JSONPath("$.store.book[?@.price < 10].title")   // RFC 9535 (default)
+try path.values(in: document)                                   // ["Sayings of the Century", "Moby Dick"]
+try path.paths(in: document)                                    // [$['store']['book'][0]['title'], ...]
+
+let jayway = try JSONPath("$.store.book[?(@.author =~ /.*REES/i)].price", dialect: .jayway)   // [8.95]
+let count = try JSONPath("$.store.book.length()", dialect: .jayway)                         // [3]
+
+var mutable = document
+try mutable.replace(JSONPath("$..price"), with: 0)
+try mutable.remove(JSONPath("$.store.bicycle"))
+try mutable.map(JSONPath("$..title")) { .string($0.stringValue!.uppercased()) }
+try mutable.set("new", at: JSONPointer("/store/book/0/tag"))
+```
+
+| Feature | `.rfc9535` | `.jayway` |
+|---|---|---|
+| Names, wildcards, indices, slices, unions, descendants | ✓ | ✓ |
+| Filters | `[?expr]`, members of objects | `[?(expr)]` / `[?expr]`, the object itself |
+| Comparisons | strict, typed | loose (`'1' == 1`), `===`, `!==` |
+| Functions in filters | `length` `count` `match` `search` `value` | same, plus path functions |
+| Jayway operators | – | `=~ /re/flags`, `in`, `nin`, `contains`, `all`, `size`, `empty`, `subsetof`, `anyof`, `noneof`, `type`, `exists` |
+| Path functions | – | `length()` `size()` `avg()` `sum()` `min()` `max()` `stddev()` `concat()` `append()` `keys()` `first()` `last()` `index(n)` |
+| Implicit `$` (`store.book`) | – | ✓ |
 
 ### Resolution
 
@@ -247,7 +300,7 @@ let order      = try workflow.executionOrder(components: document.components)   
 | Specification Extensions          | `VendorExtensions` on every extensible object     |
 
 Out of scope (for now): fetching and parsing the referenced OpenAPI / AsyncAPI documents, executing
-workflows, and JSONPath / XPath engines.
+workflows, and an XPath engine.
 
 ## Development
 
@@ -258,7 +311,13 @@ swift test
 
 The test suite decodes, round-trips and validates the examples published in
 [OAI/Arazzo-Specification](https://github.com/OAI/Arazzo-Specification) (Apache-2.0) plus a 1.1
-fixture covering every new feature. Validation finds a few genuine mistakes in the upstream
+fixture covering every new feature. The JSONPath engine runs the
+[JSONPath Compliance Test Suite](https://github.com/jsonpath-standard/jsonpath-compliance-test-suite)
+(BSD-2-Clause, all 715 cases) and the complete test suite of
+[Sextant](https://github.com/KittyMac/Sextant) (MIT; itself derived from Jayway JsonPath), ported to
+swift-testing — 300+ tests. Where Sextant's tests exercise Sextant-only APIs (tuples, in-place
+`JsonElement` mutation) they are adapted to the equivalent `JSONValue` operations, and each
+adaptation is commented in the test file. Validation finds a few genuine mistakes in the upstream
 examples (an expression missing `.outputs.` in `bnpl-arazzo.yaml`, a misspelled source description
 in the 1.1.0 specification's root example); the tests assert they are reported.
 

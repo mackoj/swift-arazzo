@@ -1,3 +1,4 @@
+import JSONPath
 /// Specification extensions: patterned fields prefixed by `x-`.
 public typealias VendorExtensions = OrderedDictionary<String, JSONValue>
 

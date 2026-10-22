@@ -1,4 +1,5 @@
 import ArazzoKit
+import ArazzoKitYAML
 import Testing
 
 @Suite("Conditions and criteria")
@@ -85,34 +86,108 @@ struct ConditionTests {
         #expect(!broken.isSatisfied(in: Self.context))
     }
 
-    @Test func queryLanguagesNeedAnEvaluator() throws {
-        let criterion = Arazzo.Criterion(
-            context: expression("$response.body"), condition: "$.pets[?(@.name == '{$inputs.expectedStatus}')]",
+    @Test func builtInJSONPathCriteria() throws {
+        // Embedded expressions are substituted before the JSONPath is compiled.
+        let named = Arazzo.Criterion(
+            context: expression("$response.body"), condition: "$.pets[?@.name == '{$inputs.pattern}' || @.id == 1]",
             type: .jsonPath)
-        #expect(throws: Arazzo.EvaluationError.unsupportedQueryLanguage(.jsonPath)) {
-            try criterion.evaluate(in: Self.context)
-        }
+        #expect(try named.evaluate(in: Self.context))
 
-        struct FakeJSONPath: Arazzo.QueryEvaluator {
+        let none = Arazzo.Criterion(context: expression("$response.body"), condition: "$.pets[?@.id > 5]", type: .jsonPath)
+        #expect(try !none.evaluate(in: Self.context))
+
+        // RFC 9535 (the default) applies a filter to the members of the root object...
+        let spec = "$[?count(@.pets) > 0]"
+        #expect(try !Arazzo.Criterion(context: expression("$response.body"), condition: spec, type: .jsonPath).evaluate(in: Self.context))
+        // ...while the Goessner draft version uses Jayway semantics and tests the root object itself.
+        let goessner = Arazzo.Criterion(
+            context: expression("$response.body"), condition: "$[?(@.pets.length() > 0)]",
+            type: .expressionType(.init(kind: .jsonPath, version: .draftGoessnerDispatchJSONPath00)))
+        #expect(try goessner.evaluate(in: Self.context))
+
+        // Invalid JSONPath is an evaluation error, i.e. the criterion fails.
+        let invalid = Arazzo.Criterion(context: expression("$response.body"), condition: "$[?", type: .jsonPath)
+        #expect(throws: Arazzo.EvaluationError.self) { try invalid.evaluate(in: Self.context) }
+        #expect(!invalid.isSatisfied(in: Self.context))
+
+        // A body kept as JSON text is parsed before querying.
+        let textual = Arazzo.EvaluationContext(response: .init(body: #"{"items": [1, 2]}"#))
+        #expect(Arazzo.Criterion(context: expression("$response.body"), condition: "$.items[1]", type: .jsonPath).isSatisfied(in: textual))
+    }
+
+    @Test func builtInSelectors() throws {
+        func select(_ selector: String, _ type: Arazzo.SelectorType = .jsonPath) throws -> JSONValue? {
+            try Arazzo.Selector(context: expression("$response.body"), selector: selector, type: type).evaluate(in: Self.context)
+        }
+        #expect(try select("$.pets[0].id") == 1)
+        #expect(try select("$.pets[*].id") == [1, 2])  // several nodes → an array
+        #expect(try select("$.nope") == nil)
+        #expect(try select("/pets/1/name", .jsonPointer) == "Tom's")
+        #expect(throws: Arazzo.EvaluationError.unsupportedQueryLanguage(.xPath)) { try select("/a", .xPath) }
+    }
+
+    @Test func customQueryEvaluators() throws {
+        struct FakeXPath: Arazzo.QueryEvaluator {
+            func supports(_ kind: Arazzo.ExpressionType.Kind, version: Arazzo.ExpressionType.Version) -> Bool {
+                kind == .xPath
+            }
             func evaluateCondition(
                 _ condition: String, kind: Arazzo.ExpressionType.Kind, version: Arazzo.ExpressionType.Version,
                 context: JSONValue
             ) throws -> Bool {
-                // Embedded expressions are substituted before the query engine sees the condition.
-                condition == "$.pets[?(@.name == 'available')]" && kind == .jsonPath && version == .rfc9535
-                    && context["pets"] != nil
+                condition == "/root/pets[name='available']" && version == .xpath31
             }
             func select(
                 _ selector: String, kind: Arazzo.ExpressionType.Kind, version: Arazzo.ExpressionType.Version,
                 context: JSONValue
             ) throws -> JSONValue? {
-                context["pets"]?[0]?["id"]
+                "from-xpath"
             }
         }
-        #expect(try criterion.evaluate(in: Self.context, queryEvaluator: FakeJSONPath()))
+        let xpath = Arazzo.Criterion(
+            context: expression("$response.body"), condition: "/root/pets[name='{$inputs.expectedStatus}']", type: .xPath)
+        #expect(throws: Arazzo.EvaluationError.self) { try xpath.evaluate(in: Self.context) }
+        #expect(try xpath.evaluate(in: Self.context, queryEvaluator: FakeXPath()))
+        // JSONPath keeps using the built-in engine when the evaluator does not support it.
+        let jsonPath = Arazzo.Criterion(context: expression("$response.body"), condition: "$.pets[0]", type: .jsonPath)
+        #expect(try jsonPath.evaluate(in: Self.context, queryEvaluator: FakeXPath()))
+        let selector = Arazzo.Selector(context: expression("$response.body"), selector: "/a", type: .xPath)
+        #expect(try selector.evaluate(in: Self.context, queryEvaluator: FakeXPath()) == "from-xpath")
+    }
 
-        let selector = Arazzo.Selector(context: expression("$response.body"), selector: "$.pets[0].id", type: .jsonPath)
-        #expect(try selector.evaluate(in: Self.context, queryEvaluator: FakeJSONPath()) == 1)
+    @Test func payloadReplacements() throws {
+        let body = try decodeYAML(
+            Arazzo.RequestBody.self,
+            """
+            contentType: application/json
+            payload:
+              order:
+                petId: 0
+                quantity: 1
+                note: "for {$steps.login.outputs.token}"
+                items: [{sku: a, qty: 1}, {sku: b, qty: 1}]
+            replacements:
+              - target: /order/petId
+                value: $response.body#/pets/1/id
+              - target: $.order.items[?@.sku == 'b'].qty
+                targetSelectorType: jsonpath
+                value: 5
+              - target: /order/tags
+                value: [new]
+            """)
+        let payload = try body.resolvedPayload(in: Self.context)
+        #expect(
+            payload == [
+                "order": [
+                    "petId": 2, "quantity": 1, "note": "for abc",
+                    "items": [["sku": "a", "qty": 1], ["sku": "b", "qty": 5]], "tags": ["new"],
+                ]
+            ])
+
+        let template = Arazzo.RequestBody(
+            contentType: "application/json", payload: #"{"token": "{$steps.login.outputs.token}", "n": 1}"#,
+            replacements: [.init(target: "/n", value: 2)])
+        #expect(try template.resolvedPayload(in: Self.context) == ["token": "abc", "n": 2])
     }
 
     @Test func criteriaListsAreANDed() {

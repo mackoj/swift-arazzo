@@ -48,6 +48,13 @@ public struct OrderedDictionary<Key: Hashable, Value> {
 
     public func contains(key: Key) -> Bool { storage[key] != nil }
 
+    /// The stored key equal to `key` and its value. (Swift `String` equality is canonical-equivalence
+    /// based; callers that need code-point equality compare the returned key.)
+    func entry(forKey key: Key) -> (key: Key, value: Value)? {
+        guard let index = storage.index(forKey: key) else { return nil }
+        return storage[index]
+    }
+
     public func mapValues<T>(_ transform: (Value) throws -> T) rethrows -> OrderedDictionary<Key, T> {
         var result = OrderedDictionary<Key, T>()
         for key in keys { result[key] = try transform(storage[key]!) }
@@ -109,7 +116,7 @@ extension OrderedDictionary: CustomStringConvertible {
 
 extension OrderedDictionary: Decodable where Key == String, Value: Decodable {
     public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: AnyCodingKey.self)
+        let container = try decoder.container(keyedBy: JSONCodingKey.self)
         self.init()
         for key in container.allKeys {
             self[key.stringValue] = try container.decode(Value.self, forKey: key)
@@ -119,9 +126,9 @@ extension OrderedDictionary: Decodable where Key == String, Value: Decodable {
 
 extension OrderedDictionary: Encodable where Key == String, Value: Encodable {
     public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.container(keyedBy: JSONCodingKey.self)
         for (key, value) in self {
-            try container.encode(value, forKey: AnyCodingKey(key))
+            try container.encode(value, forKey: JSONCodingKey(key))
         }
     }
 }

@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A JSON Schema (Draft 2020-12) used for workflow `inputs` and `components.inputs`.
     ///

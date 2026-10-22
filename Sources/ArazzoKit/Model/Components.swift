@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// Reusable objects (the "Components Object"). Keys MUST match `^[a-zA-Z0-9\.\-_]+$`.
     public struct Components: Hashable, Sendable, VendorExtendable {

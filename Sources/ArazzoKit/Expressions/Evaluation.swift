@@ -1,3 +1,4 @@
+import JSONPath
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
@@ -11,11 +12,15 @@ extension Arazzo {
         func resolve(_ expression: RuntimeExpression) throws -> JSONValue?
     }
 
-    /// Evaluates JSONPath / XPath queries for Criterion and Selector objects.
+    /// Evaluates query languages for Criterion, Selector and Payload Replacement objects.
     ///
-    /// ArazzoKit has no built-in JSONPath or XPath engine; plug one in through this protocol.
-    /// JSON Pointer selection is built in.
+    /// JSONPath (RFC 9535 and the Goessner/Jayway draft) and JSON Pointer are built in. Provide a
+    /// `QueryEvaluator` to add XPath support or to replace the built-in JSONPath engine; return
+    /// `false` from ``supports(_:version:)`` for the languages it does not handle.
     public protocol QueryEvaluator {
+        /// Whether this evaluator handles `kind` / `version`. Defaults to `true`.
+        func supports(_ kind: ExpressionType.Kind, version: ExpressionType.Version) -> Bool
+
         /// Evaluates a `jsonpath` / `xpath` condition against `context`, returning pass or fail
         /// (non-empty node list, Effective Boolean Value, ...).
         func evaluateCondition(
@@ -26,6 +31,12 @@ extension Arazzo {
         func select(
             _ selector: String, kind: ExpressionType.Kind, version: ExpressionType.Version, context: JSONValue
         ) throws -> JSONValue?
+
+        /// The locations a target expression selects in `document` (used for payload replacements).
+        /// Defaults to unsupported.
+        func locate(
+            _ target: String, kind: ExpressionType.Kind, version: ExpressionType.Version, in document: JSONValue
+        ) throws -> [NormalizedPath]
     }
 
     public enum EvaluationError: Error, Hashable, Sendable, CustomStringConvertible {
@@ -40,9 +51,89 @@ extension Arazzo {
             case .missingContext: "The criterion requires a context."
             case .nullContext: "The context evaluated to null."
             case .unsupportedQueryLanguage(let kind):
-                "No QueryEvaluator was provided for '\(kind.rawValue)' expressions."
+                "'\(kind.rawValue)' expressions need a QueryEvaluator that supports them."
             case .invalidRegularExpression(let message): "Invalid regular expression: \(message)"
             case .invalidSelector(let message): "Invalid selector: \(message)"
+            }
+        }
+    }
+}
+
+extension Arazzo.QueryEvaluator {
+    public func supports(_ kind: Arazzo.ExpressionType.Kind, version: Arazzo.ExpressionType.Version) -> Bool { true }
+
+    public func locate(
+        _ target: String, kind: Arazzo.ExpressionType.Kind, version: Arazzo.ExpressionType.Version,
+        in document: JSONValue
+    ) throws -> [NormalizedPath] {
+        throw Arazzo.EvaluationError.unsupportedQueryLanguage(kind)
+    }
+}
+
+extension Arazzo {
+    /// The query languages ArazzoKit evaluates itself: JSONPath and JSON Pointer.
+    public enum BuiltInQueries {
+        /// The JSONPath dialect used for an Expression Type version: `rfc9535` (the default) uses
+        /// RFC 9535; `draft-goessner-dispatch-jsonpath-00` uses the Goessner-derived Jayway dialect.
+        public static func dialect(for version: ExpressionType.Version) -> JSONPath.Dialect {
+            version == .draftGoessnerDispatchJSONPath00 ? .jayway : .rfc9535
+        }
+
+        /// Compiles a JSONPath expression for an Expression Type version.
+        public static func jsonPath(_ expression: String, version: ExpressionType.Version) throws -> JSONPath {
+            do {
+                return try JSONPath(expression, dialect: dialect(for: version))
+            } catch {
+                throw EvaluationError.invalidSelector("\(error)")
+            }
+        }
+
+        /// Structured data stored as JSON text (e.g. an unparsed response body) is parsed first.
+        static func structured(_ value: JSONValue) -> JSONValue {
+            guard case .string(let text) = value,
+                let first = text.first(where: { !$0.isWhitespace }), first == "{" || first == "[",
+                let parsed = try? JSONValue(parsing: text)
+            else { return value }
+            return parsed
+        }
+
+        static func evaluateCondition(
+            _ condition: String, kind: ExpressionType.Kind, version: ExpressionType.Version, context: JSONValue
+        ) throws -> Bool {
+            guard kind == .jsonPath else { throw EvaluationError.unsupportedQueryLanguage(kind) }
+            return try jsonPath(condition, version: version).matches(structured(context))
+        }
+
+        static func select(
+            _ selector: String, kind: ExpressionType.Kind, version: ExpressionType.Version, context: JSONValue
+        ) throws -> JSONValue? {
+            switch kind {
+            case .jsonPointer:
+                do {
+                    return try JSONPointer(selector).resolve(in: structured(context))
+                } catch {
+                    throw EvaluationError.invalidSelector("\(error)")
+                }
+            case .jsonPath:
+                let values = try jsonPath(selector, version: version).values(in: structured(context))
+                switch values.count {
+                case 0: return nil
+                case 1: return values[0]
+                default: return .array(values)
+                }
+            case .xPath:
+                throw EvaluationError.unsupportedQueryLanguage(kind)
+            }
+        }
+
+        static func locate(
+            _ target: String, kind: ExpressionType.Kind, version: ExpressionType.Version, in document: JSONValue
+        ) throws -> [NormalizedPath] {
+            switch kind {
+            case .jsonPath:
+                return try jsonPath(target, version: version).paths(in: document)
+            case .jsonPointer, .xPath:
+                throw EvaluationError.unsupportedQueryLanguage(kind)
             }
         }
     }
@@ -84,9 +175,11 @@ extension Arazzo.Criterion {
                 }
             guard let context else { throw Arazzo.EvaluationError.missingContext }
             guard let value = try resolver.resolve(context), !value.isNull else { return false }
-            guard let queryEvaluator else { throw Arazzo.EvaluationError.unsupportedQueryLanguage(kind) }
-            return try queryEvaluator.evaluateCondition(
-                try render(condition), kind: kind, version: version, context: value)
+            let rendered = try render(condition)
+            if let queryEvaluator, queryEvaluator.supports(kind, version: version) {
+                return try queryEvaluator.evaluateCondition(rendered, kind: kind, version: version, context: value)
+            }
+            return try Arazzo.BuiltInQueries.evaluateCondition(rendered, kind: kind, version: version, context: value)
         }
     }
 
@@ -112,7 +205,8 @@ extension Array where Element == Arazzo.Criterion {
 // MARK: - Selector & value evaluation
 
 extension Arazzo.Selector {
-    /// Applies the selector to its context. JSON Pointer is built in; other kinds need a ``Arazzo/QueryEvaluator``.
+    /// Applies the selector to its context. JSONPath and JSON Pointer are built in; XPath needs a
+    /// ``Arazzo/QueryEvaluator``. A JSONPath selecting several nodes yields an array of their values.
     public func evaluate(
         in resolver: some Arazzo.RuntimeExpressionResolver,
         queryEvaluator: (any Arazzo.QueryEvaluator)? = nil
@@ -126,8 +220,11 @@ extension Arazzo.Selector {
                 throw Arazzo.EvaluationError.invalidSelector("\(error)")
             }
         case let kind:
-            guard let queryEvaluator else { throw Arazzo.EvaluationError.unsupportedQueryLanguage(kind) }
-            return try queryEvaluator.select(selector, kind: kind, version: type.effectiveVersion, context: contextValue)
+            let version = type.effectiveVersion
+            if let queryEvaluator, queryEvaluator.supports(kind, version: version) {
+                return try queryEvaluator.select(selector, kind: kind, version: version, context: contextValue)
+            }
+            return try Arazzo.BuiltInQueries.select(selector, kind: kind, version: version, context: contextValue)
         }
     }
 }
@@ -349,5 +446,51 @@ extension Arazzo {
             guard let pointer else { return value }
             return pointer.resolve(in: value)
         }
+    }
+}
+
+// MARK: - Request bodies
+
+extension Arazzo.RequestBody {
+    /// The payload to send: runtime expressions, Selector Objects and embedded `{$...}` expressions
+    /// are evaluated, then each Payload Replacement is applied in order.
+    ///
+    /// JSON Pointer and JSONPath replacement targets are built in (a JSONPath target replaces every
+    /// node it selects); XPath targets need a ``Arazzo/QueryEvaluator`` implementing `locate`.
+    /// A JSON payload written as a string template is parsed before replacements are applied.
+    public func resolvedPayload(
+        in resolver: some Arazzo.RuntimeExpressionResolver,
+        queryEvaluator: (any Arazzo.QueryEvaluator)? = nil
+    ) throws -> JSONValue? {
+        guard let payload else { return nil }
+        var document = try Arazzo.Value.evaluateLiteral(payload, in: resolver, queryEvaluator: queryEvaluator)
+        guard !replacements.isEmpty else { return document }
+        if isJSON, case .string = document {
+            document = Arazzo.BuiltInQueries.structured(document)
+        }
+        for replacement in replacements {
+            let value = try replacement.value.evaluate(in: resolver, queryEvaluator: queryEvaluator)
+            let kind = replacement.effectiveTargetKind(in: self)
+            let version = replacement.targetSelectorType?.effectiveVersion ?? kind.defaultVersion
+            if let queryEvaluator, queryEvaluator.supports(kind, version: version), kind != .jsonPointer {
+                for location in try queryEvaluator.locate(replacement.target, kind: kind, version: version, in: document) {
+                    try document.set(value, at: location)
+                }
+                continue
+            }
+            switch kind {
+            case .jsonPointer:
+                do {
+                    try document.set(value, at: JSONPointer(replacement.target))
+                } catch {
+                    throw Arazzo.EvaluationError.invalidSelector("\(error)")
+                }
+            case .jsonPath, .xPath:
+                for location in try Arazzo.BuiltInQueries.locate(replacement.target, kind: kind, version: version, in: document) {
+                    try document.set(value, at: location)
+                }
+            }
+        }
+        return document
     }
 }

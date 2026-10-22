@@ -98,17 +98,3 @@ public struct JSONPointer: Hashable, Sendable, CustomStringConvertible, Codable 
     }
 }
 
-extension Character {
-    var isASCIIDigit: Bool { isASCII && isNumber }
-    var isASCIILetter: Bool { isASCII && isLetter }
-}
-
-extension String {
-    func replacingAll(_ target: Character, with replacement: String) -> String {
-        var result = ""
-        for character in self {
-            if character == target { result += replacement } else { result.append(character) }
-        }
-        return result
-    }
-}

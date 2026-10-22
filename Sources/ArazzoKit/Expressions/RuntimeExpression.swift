@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A [Runtime Expression](https://spec.openapis.org/arazzo/latest.html#runtime-expressions),
     /// such as `$response.body#/id` or `$steps.login.outputs.token`.

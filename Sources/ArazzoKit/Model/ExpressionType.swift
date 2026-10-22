@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// Describes the type and version of an expression used within a Criterion,
     /// Selector or Payload Replacement (the "Expression Type Object"; called the

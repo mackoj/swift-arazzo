@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// Where a `goto` (or `retry`) action transfers control.
     public enum ActionTarget: Hashable, Sendable {

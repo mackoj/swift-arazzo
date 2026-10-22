@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A problem found while validating an Arazzo Description.
     public struct ValidationIssue: Error, Hashable, Sendable, CustomStringConvertible {

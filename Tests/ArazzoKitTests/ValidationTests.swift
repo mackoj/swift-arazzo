@@ -194,6 +194,38 @@ struct ValidationTests {
         #expect(issues.contains(rule: "criteria", path: "\(base)/4/type", severity: .error))
     }
 
+    @Test func jsonPathSyntax() {
+        let selector = Arazzo.Selector(context: expression("$response.body"), selector: "$.a[", type: .jsonPath)
+        let document = makeDocument(
+            workflows: [
+                Self.workflow(steps: [
+                    Self.step(
+                        "s",
+                        successCriteria: [
+                            .init(context: expression("$response.body"), condition: "$[?(@.a ==)]", type: .jsonPath),
+                            .init(context: expression("$response.body"), condition: "$.items.length()", type: .jsonPath),
+                            .init(
+                                context: expression("$response.body"), condition: "$.items.length()",
+                                type: .expressionType(.init(kind: .jsonPath, version: .draftGoessnerDispatchJSONPath00))),
+                            .init(context: expression("$response.body"), condition: "$[?@.id == {$inputs.id}]", type: .jsonPath),
+                            .init(context: expression("$response.body"), condition: "$[?count(@.pets) > 0]", type: .jsonPath),
+                        ],
+                        outputs: ["bad": .selector(selector)])
+                ])
+            ])
+        let issues = document.validate()
+        let base = "/workflows/0/steps/0/successCriteria"
+        #expect(issues.contains(rule: "criteria", path: "\(base)/0/condition", severity: .error))
+        // Jayway path functions are not RFC 9535...
+        #expect(issues.contains(rule: "criteria", path: "\(base)/1/condition", severity: .error))
+        // ...but are fine with the Goessner draft version.
+        #expect(!issues.contains(rule: "criteria", path: "\(base)/2/condition"))
+        // Embedded runtime expressions are only known at runtime.
+        #expect(!issues.contains(rule: "criteria", path: "\(base)/3/condition"))
+        #expect(!issues.contains(rule: "criteria", path: "\(base)/4/condition"))
+        #expect(issues.contains(rule: "selectors", path: "/workflows/0/steps/0/outputs/bad/selector", severity: .error))
+    }
+
     @Test func runtimeExpressionReferences() {
         let document = makeDocument(
             workflows: [

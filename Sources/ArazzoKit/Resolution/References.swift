@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A reference to a workflow: a local `workflowId` or `$sourceDescriptions.<name>.<workflowId>`.
     public enum WorkflowReference: Hashable, Sendable, CustomStringConvertible {

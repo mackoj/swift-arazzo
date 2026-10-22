@@ -1,3 +1,4 @@
+@_exported import JSONPath
 /// Namespace for the [Arazzo Specification](https://spec.openapis.org/arazzo/latest.html) types.
 ///
 /// ```swift

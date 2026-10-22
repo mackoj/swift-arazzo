@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// Selects data from structured content (JSON or XML) using JSONPath, XPath or JSON Pointer
     /// (the "Selector Object", Arazzo 1.1).

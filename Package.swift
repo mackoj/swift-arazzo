@@ -11,8 +11,11 @@ let package = Package(
         .visionOS(.v1),
     ],
     products: [
+        // A standalone JSONPath engine (RFC 9535 and Jayway dialects), JSON value/parser and JSON Pointer.
+        // Pure Swift: no dependencies beyond the standard library (not even Foundation).
+        .library(name: "JSONPath", targets: ["JSONPath"]),
         // The core models, runtime expressions, condition evaluation and validation.
-        // No third-party dependencies; uses FoundationEssentials where available.
+        // Depends only on JSONPath; uses FoundationEssentials where available.
         .library(name: "ArazzoKit", targets: ["ArazzoKit"]),
         // Optional YAML support (decoding/encoding) built on Yams.
         .library(name: "ArazzoKitYAML", targets: ["ArazzoKitYAML"]),
@@ -22,7 +25,15 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "ArazzoKit"
+            name: "JSONPath",
+            linkerSettings: [
+                // `rounded()` / `squareRoot()` come from libm, which Foundation would otherwise pull in.
+                .linkedLibrary("m", .when(platforms: [.linux, .android]))
+            ]
+        ),
+        .target(
+            name: "ArazzoKit",
+            dependencies: ["JSONPath"]
         ),
         .target(
             name: "ArazzoKitYAML",
@@ -30,6 +41,11 @@ let package = Package(
                 "ArazzoKit",
                 .product(name: "Yams", package: "Yams"),
             ]
+        ),
+        .testTarget(
+            name: "JSONPathTests",
+            dependencies: ["JSONPath"],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "ArazzoKitTests",

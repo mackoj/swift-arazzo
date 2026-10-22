@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A string that may embed runtime expressions in curly braces, e.g.
     /// `https://{$inputs.host}/api/{$steps.create.outputs.id}/status`.

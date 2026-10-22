@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A reference to an object in the Components Object (the "Reusable Object").
     ///

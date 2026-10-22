@@ -1,3 +1,4 @@
+import JSONPath
 /// The validation rules shipped with ArazzoKit.
 enum BuiltInRules {
     static let all: [Arazzo.ValidationRule] = [
@@ -588,9 +589,14 @@ enum BuiltInRules {
                             report.error(path + "/condition", "Invalid regular expression '\(criterion.condition)': \(error)")
                         }
                     }
-                case .jsonPath, .xPath:
+                case .jsonPath:
+                    checkJSONPath(criterion.condition, version: .rfc9535, path: path + "/condition", report: &report)
+                case .xPath:
                     break
                 case .expressionType(let type):
+                    if type.kind == .jsonPath, type.hasAllowedVersion {
+                        checkJSONPath(criterion.condition, version: type.version, path: path + "/condition", report: &report)
+                    }
                     if type.kind == .jsonPointer {
                         report.error(path + "/type", "Criterion types are simple, regex, jsonpath or xpath; jsonpointer is not a condition language.")
                     } else if !type.hasAllowedVersion {
@@ -625,6 +631,9 @@ enum BuiltInRules {
             report.error(path + "/context", "\(error)")
         }
         checkSelectorType(selector.type, path: path + "/type", report: &report)
+        if selector.type.kind == .jsonPath {
+            checkJSONPath(selector.selector, version: selector.type.effectiveVersion, path: path + "/selector", report: &report)
+        }
         if selector.type.kind == .jsonPointer, (try? JSONPointer(selector.selector)) == nil {
             report.error(path + "/selector", "'\(selector.selector)' is not a valid JSON Pointer.")
         }
@@ -960,8 +969,17 @@ enum BuiltInRules {
                 }
                 for (rIndex, replacement) in body.replacements.enumerated() {
                     let path = "/workflows/\(wIndex)/steps/\(sIndex)/requestBody/replacements/\(rIndex)/target"
-                    if replacement.effectiveTargetKind(in: body) == .jsonPointer, (try? JSONPointer(replacement.target)) == nil {
-                        report.error(path, "'\(replacement.target)' is not a valid JSON Pointer.")
+                    switch replacement.effectiveTargetKind(in: body) {
+                    case .jsonPointer:
+                        if (try? JSONPointer(replacement.target)) == nil {
+                            report.error(path, "'\(replacement.target)' is not a valid JSON Pointer.")
+                        }
+                    case .jsonPath:
+                        checkJSONPath(
+                            replacement.target, version: replacement.targetSelectorType?.effectiveVersion ?? .rfc9535,
+                            path: path, report: &report)
+                    case .xPath:
+                        break
                     }
                     if replacement.target.isEmpty {
                         report.error(path, "target is REQUIRED and MUST NOT be empty.")
@@ -972,6 +990,19 @@ enum BuiltInRules {
     }
 
     // MARK: Helpers
+
+    /// Reports JSONPath syntax errors. Expressions with embedded `{$...}` runtime expressions are only
+    /// known at runtime and are skipped.
+    static func checkJSONPath(
+        _ expression: String, version: Arazzo.ExpressionType.Version, path: String,
+        report: inout Arazzo.ValidationReporter
+    ) {
+        guard !Arazzo.ExpressionTemplate(expression).hasExpressions else { return }
+        let dialect = Arazzo.BuiltInQueries.dialect(for: version)
+        if let message = JSONPath.validate(expression, dialect: dialect) {
+            report.error(path, "Invalid JSONPath (\(dialect == .rfc9535 ? "RFC 9535" : "Goessner/Jayway")) '\(expression)': \(message)")
+        }
+    }
 
     static func checkArazzoSource(
         _ name: String, in document: Arazzo.Document, path: String, report: inout Arazzo.ValidationReporter

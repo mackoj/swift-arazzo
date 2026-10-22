@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A workflow output value: a runtime expression or (Arazzo 1.1) a Selector Object.
     public enum OutputValue: Hashable, Sendable {

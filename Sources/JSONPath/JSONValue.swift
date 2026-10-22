@@ -47,6 +47,15 @@ extension JSONValue {
         objectValue?[key]
     }
 
+    /// Object member lookup comparing names by Unicode code points (as JSON requires) rather than
+    /// Swift's canonical equivalence (`"ü" == "u\u{308}"`).
+    public func member(_ name: String) -> JSONValue? {
+        guard case .object(let object) = self, let entry = object.entry(forKey: name),
+            entry.key.unicodeScalars.elementsEqual(name.unicodeScalars)
+        else { return nil }
+        return entry.value
+    }
+
     /// Array element lookup. Returns `nil` for non-arrays or out-of-range indices.
     public subscript(index: Int) -> JSONValue? {
         guard let array = arrayValue, array.indices.contains(index) else { return nil }
@@ -80,7 +89,7 @@ extension JSONValue: ExpressibleByNilLiteral, ExpressibleByBooleanLiteral, Expre
 
 extension JSONValue: Codable {
     public init(from decoder: any Decoder) throws {
-        if let container = try? decoder.container(keyedBy: AnyCodingKey.self) {
+        if let container = try? decoder.container(keyedBy: JSONCodingKey.self) {
             var object = OrderedDictionary<String, JSONValue>()
             for key in container.allKeys {
                 object[key.stringValue] = try container.decode(JSONValue.self, forKey: key)
@@ -135,9 +144,9 @@ extension JSONValue: Codable {
             var container = encoder.unkeyedContainer()
             for value in values { try container.encode(value) }
         case .object(let object):
-            var container = encoder.container(keyedBy: AnyCodingKey.self)
+            var container = encoder.container(keyedBy: JSONCodingKey.self)
             for (key, value) in object {
-                try container.encode(value, forKey: AnyCodingKey(key))
+                try container.encode(value, forKey: JSONCodingKey(key))
             }
         }
     }
@@ -207,14 +216,5 @@ extension JSONValue: CustomStringConvertible {
             }
         }
         output += "\""
-    }
-
-    /// The string representation used when a value is embedded in a string with `{$expression}`:
-    /// scalars become their plain text form, structured values are serialized as JSON.
-    public var embeddedStringValue: String {
-        switch self {
-        case .string(let v): v
-        default: jsonString
-        }
     }
 }

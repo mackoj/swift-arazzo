@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A parsed `simple` condition, e.g. `$statusCode == 200 && $response.body#/items/0 != null`.
     ///

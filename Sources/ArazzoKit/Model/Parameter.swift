@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A parameter passed to an operation or workflow (the "Parameter Object").
     /// A parameter is uniquely identified by the combination of `name` and `in`.

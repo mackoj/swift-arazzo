@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// The request body a step passes to an operation (the "Request Body Object").
     public struct RequestBody: Hashable, Sendable, VendorExtendable {

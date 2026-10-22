@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// An assertion used by `successCriteria` and action `criteria` (the "Criterion Object").
     public struct Criterion: Hashable, Sendable, VendorExtendable {

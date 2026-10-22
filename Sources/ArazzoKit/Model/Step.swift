@@ -1,3 +1,4 @@
+import JSONPath
 extension Arazzo {
     /// A single workflow step (the "Step Object"): a call to an OpenAPI operation,
     /// an AsyncAPI operation/channel, or another workflow.
