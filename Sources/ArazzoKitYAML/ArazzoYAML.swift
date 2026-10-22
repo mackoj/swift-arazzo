@@ -1,3 +1,5 @@
+// YAML support is compiled only with the `YAML` package trait (always on with Swift 6.0).
+#if YAML
 import ArazzoKit
 import Yams
 
@@ -58,3 +60,4 @@ public enum ArazzoYAML {
         return try encoder.encode(value)
     }
 }
+#endif
