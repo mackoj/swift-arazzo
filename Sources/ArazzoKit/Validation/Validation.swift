@@ -30,7 +30,7 @@ extension Arazzo {
         }
     }
 
-    /// Thrown by ``Document/validateOrThrow(using:)`` when errors are found.
+    /// Thrown by ``Document/validateOrThrow(using:failingOn:)`` when errors are found.
     public struct ValidationError: Error, Sendable, CustomStringConvertible {
         public let issues: [ValidationIssue]
         public var description: String {
