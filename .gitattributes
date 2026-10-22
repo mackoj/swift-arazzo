@@ -3,5 +3,4 @@
 # Third-party fixtures are copied byte for byte (some upstream files use CRLF): never normalise them.
 Tests/*/Fixtures/** -text
 # Excluded from GitHub language stats.
-Tests/JSONPathTests/Fixtures/cts.json linguist-vendored
 Tests/ArazzoKitTests/Fixtures/*.yaml linguist-vendored
