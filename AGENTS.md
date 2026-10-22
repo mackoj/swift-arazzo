@@ -6,7 +6,7 @@ Read `CONSTRAINTS.md` before writing code. Do not weaken it to make a change pas
 
 ## Project conventions
 - Consult `GLOSSARY.md` for domain terms, `docs/adr/` for decisions and their rationale, and `CODING_STANDARDS.md` for review rules.
-- Work in a sibling worktree on its own branch: `git worktree add -b <topic> ../swift-arazzo-<topic> main`. Keep the main checkout on `main`.
+- Before the first edit of any task, create a sibling worktree on its own branch: `git worktree add -b <topic> ../swift-arazzo-<topic> main`, and make every change there. The main checkout stays clean on `main`.
 - The specification is the source of truth for behaviour. Cite the Arazzo section or RFC 9535 rule a change implements, and record a deliberate deviation (like the dotted-path convenience) in the README and the validation rules.
 
 ## How to work
