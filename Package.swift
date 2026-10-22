@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 import PackageDescription
 
 let package = Package(
@@ -14,8 +14,15 @@ let package = Package(
         // The core models, runtime expressions, condition evaluation and validation.
         // Depends only on swift-jsonpath; uses FoundationEssentials where available.
         .library(name: "ArazzoKit", targets: ["ArazzoKit"]),
-        // Optional YAML support (decoding/encoding) built on Yams.
+        // YAML support (decoding/encoding) built on Yams, when the `YAML` trait is enabled.
         .library(name: "ArazzoKitYAML", targets: ["ArazzoKitYAML"]),
+    ],
+    traits: [
+        .trait(
+            name: "YAML",
+            description: "YAML decoding and encoding in ArazzoKitYAML, built on Yams."
+        ),
+        .default(enabledTraits: ["YAML"]),
     ],
     dependencies: [
         .package(url: "https://github.com/mackoj/swift-jsonpath.git", from: "0.0.1"),
@@ -32,7 +39,7 @@ let package = Package(
             name: "ArazzoKitYAML",
             dependencies: [
                 "ArazzoKit",
-                .product(name: "Yams", package: "Yams"),
+                .product(name: "Yams", package: "Yams", condition: .when(traits: ["YAML"])),
             ]
         ),
         .testTarget(

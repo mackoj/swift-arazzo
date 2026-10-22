@@ -26,6 +26,9 @@ jobs:
         run: swift test
       - name: Release build
         run: swift build -c release
+      - name: Build without the YAML trait
+        if: matrix.swift != '6.0'
+        run: swift build --disable-default-traits
 
   macos:
     name: macOS
@@ -36,3 +39,5 @@ jobs:
         run: swift build --build-tests
       - name: Test
         run: swift test
+      - name: Build without the YAML trait
+        run: swift build --disable-default-traits

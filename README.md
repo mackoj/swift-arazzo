@@ -31,7 +31,7 @@ cannot express.
 - **Resolution helpers**: reusable components, effective parameters/actions after workflow-level
   overrides, and a dependency-respecting step execution order.
 - Optional **YAML** support (`ArazzoKitYAML`, built on [Yams](https://github.com/jpsim/Yams)) that
-  preserves key order.
+  preserves key order, behind the `YAML` package trait (enabled by default).
 
 ## Installation
 
@@ -49,10 +49,20 @@ targets: [
 
 Requires Swift 6.0+. Platforms: Linux, macOS 13+, iOS 16+, tvOS 16+, watchOS 9+, visionOS 1+.
 
+YAML support is the `YAML` [package trait](https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/packagetraits),
+enabled by default. With Swift 6.1+, opt out to avoid building Yams; `ArazzoKitYAML` is then empty and
+JSON remains available through `ArazzoKit`:
+
+```swift
+.package(url: "https://github.com/mackoj/swift-arazzo.git", branch: "main", traits: []),
+```
+
+Swift 6.0 has no package traits, so it always builds YAML support (`Package@swift-6.0.swift`).
+
 | Product         | Depends on                         | Purpose                                  |
 |-----------------|------------------------------------|------------------------------------------|
 | `ArazzoKit`     | [swift-jsonpath](https://github.com/mackoj/swift-jsonpath), FoundationEssentials | Models, expressions, evaluation, validation |
-| `ArazzoKitYAML` | `ArazzoKit`, Yams                  | YAML decoding/encoding                   |
+| `ArazzoKitYAML` | `ArazzoKit`, Yams (`YAML` trait)   | YAML decoding/encoding                   |
 
 ## Usage
 
