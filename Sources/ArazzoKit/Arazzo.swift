@@ -49,7 +49,9 @@ extension Arazzo {
             self = version
         }
 
+        /// Creates a version from its components. Components must be non-negative.
         public init(major: Int, minor: Int, patch: Int) {
+            precondition(major >= 0 && minor >= 0 && patch >= 0, "Version components must be non-negative")
             self.init(rawValue: "\(major).\(minor).\(patch)")!
         }
 

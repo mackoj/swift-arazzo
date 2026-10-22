@@ -367,6 +367,7 @@ extension Arazzo.RuntimeExpression {
             guard consume("#") else { return nil }
             let text = String(rest)
             rest = ""
+            guard !text.hasPrefix("#") else { throw fail("a JSON Pointer cannot start with '#'") }
             do {
                 return try JSONPointer(text)
             } catch {
@@ -418,8 +419,11 @@ extension Arazzo.RuntimeExpression {
                 } else if consume("[") {
                     guard let close = rest.firstIndex(of: "]") else { throw fail("unterminated '['") }
                     var index = String(rest[..<close])
-                    if index.count >= 2, let q = index.first, q == "'" || q == "\"", index.last == q {
+                    if let q = index.first, q == "'" || q == "\"" {
+                        guard index.count >= 2, index.last == q else { throw fail("unbalanced quote in '[\(index)]'") }
                         index = String(index.dropFirst().dropLast())
+                    } else if let last = index.last, last == "'" || last == "\"" {
+                        throw fail("unbalanced quote in '[\(index)]'")
                     }
                     tokens.append(index)
                     rest = rest[rest.index(after: close)...]

@@ -75,21 +75,25 @@ extension Arazzo.Document: Codable {
 // MARK: - JSON convenience
 
 extension Arazzo.Document {
-    /// Decodes an Arazzo Description from JSON data.
+    /// Decodes an Arazzo Description from JSON data. Object member order is preserved.
     public init(json data: Data, options: Arazzo.DecodingOptions = .init()) throws {
-        let decoder = JSONDecoder()
-        decoder.userInfo[Arazzo.DecodingOptions.key] = options
-        self = try decoder.decode(Self.self, from: data)
+        let value: JSONValue
+        do {
+            value = try JSONValue(parsing: data)
+        } catch {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "\(error)", underlyingError: error))
+        }
+        self = try JSONValueDecoder(userInfo: [Arazzo.DecodingOptions.key: options]).decode(Self.self, from: value)
     }
 
-    /// Encodes the description as JSON.
+    /// Encodes the description as JSON, keeping field and map order (unless `sortedKeys`).
     public func jsonData(prettyPrinted: Bool = true, sortedKeys: Bool = false) throws -> Data {
-        let encoder = JSONEncoder()
-        var formatting: JSONEncoder.OutputFormatting = [.withoutEscapingSlashes]
-        if prettyPrinted { formatting.insert(.prettyPrinted) }
-        if sortedKeys { formatting.insert(.sortedKeys) }
-        encoder.outputFormatting = formatting
-        return try encoder.encode(self)
+        Data(try jsonValue().jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys).utf8)
+    }
+
+    /// The description as a ``JSONValue`` tree.
+    public func jsonValue() throws -> JSONValue {
+        try JSONValueEncoder().encode(self)
     }
 }
 

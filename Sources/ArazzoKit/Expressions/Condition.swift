@@ -137,10 +137,24 @@ extension Arazzo.Condition {
             default: return false
             }
         }
-        // Numeric comparison (with numeric-string coercion).
-        if let l = lhs.numericValueForComparison, let r = rhs.numericValueForComparison,
-            lhs.doubleValue != nil || rhs.doubleValue != nil
+        // Numeric comparison: numbers compare numerically, and numeric strings are coerced when the
+        // other side is a number – or, for ordering operators, when both sides are numeric strings
+        // (headers, query and path values are always strings).
+        let isOrdering = op == .less || op == .lessOrEqual || op == .greater || op == .greaterOrEqual
+        if lhs.doubleValue != nil || rhs.doubleValue != nil || isOrdering,
+            let l = lhs.numericValueForComparison, let r = rhs.numericValueForComparison
         {
+            if case .integer(let a)? = lhs.exactInteger, case .integer(let b)? = rhs.exactInteger {
+                switch op {
+                case .equal: return a == b
+                case .notEqual: return a != b
+                case .less: return a < b
+                case .lessOrEqual: return a <= b
+                case .greater: return a > b
+                case .greaterOrEqual: return a >= b
+                case .and, .or: return false
+                }
+            }
             switch op {
             case .equal: return l == r
             case .notEqual: return l != r
@@ -188,8 +202,33 @@ extension JSONValue {
         switch self {
         case .integer(let v): Double(v)
         case .number(let v): v
-        case .string(let s): Double(s.trimmingWhitespace())
+        case .string(let s): Self.numericLiteral(s)?.doubleValue
         default: nil
+        }
+    }
+
+    /// An integer value (also for integral numeric strings), for exact comparisons.
+    var exactInteger: JSONValue? {
+        switch self {
+        case .integer:
+            return self
+        case .string(let s):
+            if case .integer? = Self.numericLiteral(s) { return Self.numericLiteral(s) }
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    /// Parses a string as a JSON number (`-12`, `3.5`, `1e3`); hex, `nan`, `inf` and the like are rejected.
+    static func numericLiteral(_ text: String) -> JSONValue? {
+        let trimmed = text.trimmingWhitespace()
+        guard let first = trimmed.unicodeScalars.first, first == "-" || ("0"..."9").contains(first),
+            let value = try? JSONValue(parsing: trimmed)
+        else { return nil }
+        switch value {
+        case .integer, .number: return value
+        default: return nil
         }
     }
 }
@@ -198,7 +237,7 @@ extension JSONValue {
 
 private enum ConditionToken: Equatable {
     case expression(String)
-    case number(Double, isInteger: Bool)
+    case number(Double, integer: Int?)
     case string(String)
     case identifier(String)  // true, false, null
     case op(String)
@@ -294,7 +333,7 @@ private struct ConditionParser {
                 }
                 let text = String(characters[i..<j])
                 guard let number = Double(text) else { throw fail("invalid number '\(text)'") }
-                tokens.append(.number(number, isInteger: isInteger))
+                tokens.append(.number(number, integer: isInteger ? Int(text) : nil))
                 i = j
             case "=", "!", "<", ">":
                 if i + 1 < characters.count, characters[i + 1] == "=" {
@@ -388,8 +427,8 @@ private struct ConditionParser {
             let inner = try parseOr()
             guard advance() == .rightParen else { throw fail("missing ')'") }
             return inner
-        case .number(let value, let isInteger):
-            if isInteger, let int = Int(exactly: value) { return .literal(.integer(int)) }
+        case .number(let value, let integer):
+            if let integer { return .literal(.integer(integer)) }
             return .literal(.number(value))
         case .string(let value):
             return .literal(.string(value))
@@ -412,8 +451,7 @@ private struct ConditionParser {
                 if current == .leftBracket {
                     position += 1
                     switch advance() {
-                    case .number(let n, true)?:
-                        guard let index = Int(exactly: n) else { throw fail("invalid index") }
+                    case .number(_, let index?)?:
                         accessors.append(.index(index))
                     case .string(let key)?:
                         accessors.append(.property(key))

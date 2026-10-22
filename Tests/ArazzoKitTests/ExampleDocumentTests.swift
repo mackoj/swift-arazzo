@@ -51,8 +51,9 @@ struct ExampleDocumentTests {
 
     @Test func bnplExampleHasKnownMistakes() throws {
         let issues = try Fixtures.document("bnpl-arazzo.yaml").validate()
-        // `$steps.retrieveFinalizedPaymentPlan.finalizedPaymentPlan` is missing `.outputs.`
-        #expect(issues.contains(rule: "runtime-expressions", path: "/workflows/0/outputs/finalizedPaymentPlan", severity: .error))
+        // `$steps.retrieveFinalizedPaymentPlan.finalizedPaymentPlan` is missing `.outputs.`. Arazzo 1.0's
+        // grammar technically allows it (`$steps.` followed by anything), so it is a warning for this 1.0 document.
+        #expect(issues.contains(rule: "runtime-expressions", path: "/workflows/0/outputs/finalizedPaymentPlan", severity: .warning))
         // `initiateBnplTransaction` never declares a `loanTransactionId` output.
         #expect(issues.contains { $0.message.contains("declares no output 'loanTransactionId'") })
     }

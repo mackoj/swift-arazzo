@@ -70,9 +70,10 @@ let document = try Arazzo.Document(contentsOf: data)          // sniffs JSON vs 
 let document = try JSONDecoder().decode(Arazzo.Document.self, from: data)
 ```
 
-Decoding is **lenient by default**: unknown properties are ignored and runtime expressions that do
-not parse are kept as `RuntimeExpression.Kind.invalid` so that one typo does not stop you from
-reading a document — `validate()` reports them. Opt into **strict** decoding to reject unknown
+Decoding is **lenient by default**: unknown properties are ignored, fields that do not apply to an
+action's `type` (such as `retryLimit` on a `goto`) are dropped, and runtime expressions that do not
+parse are kept as `RuntimeExpression.Kind.invalid` so that one typo does not stop you from reading a
+document — `validate()` reports them. Opt into **strict** decoding to reject unknown
 properties, fields irrelevant to an action's `type`, and invalid expressions:
 
 ```swift
@@ -116,7 +117,9 @@ document.info[extension: "x-owner"]      // specification extensions on every ex
 ```
 
 Map-typed fields (`outputs`, `components.*`, JSON Schema properties, extensions) are
-`OrderedDictionary`, so the document's key order survives a YAML round trip. `Any`-typed fields
+`OrderedDictionary`, so the document's key order survives JSON and YAML round trips
+(`Arazzo.Document(json:)` / `jsonData()` use the order-preserving `JSONValueDecoder` / `JSONValueEncoder`;
+Foundation's `JSONDecoder` does not expose keys in order). `Any`-typed fields
 (payloads, literal values, extensions) are `JSONValue`. Workflow `inputs` are kept losslessly as
 `Arazzo.JSONSchema` with accessors for `type`, `properties`, `required` and `$ref`.
 

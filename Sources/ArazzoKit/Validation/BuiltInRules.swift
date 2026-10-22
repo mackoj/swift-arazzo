@@ -570,8 +570,10 @@ enum BuiltInRules {
         for (listPath, list) in criteriaLists(in: document) {
             for (index, criterion) in list.enumerated() {
                 let path = "\(listPath)/\(index)"
-                if criterion.type != nil, criterion.context == nil {
-                    report.error(path + "/context", "context MUST be provided when type is specified.")
+                if let type = criterion.type, criterion.context == nil {
+                    // The rule is literally "if type is specified", but a simple condition never uses context.
+                    report.report(
+                        type == .simple ? .warning : .error, path + "/context", "context MUST be provided when type is specified.")
                 }
                 switch criterion.effectiveType {
                 case .simple:
@@ -594,6 +596,14 @@ enum BuiltInRules {
                 case .xPath:
                     break
                 case .expressionType(let type):
+                    if !document.arazzo.supportsV1_1Features {
+                        let allowed10: [Arazzo.ExpressionType.Version] = [.draftGoessnerDispatchJSONPath00, .xpath30, .xpath20, .xpath10]
+                        if type.kind == .jsonPointer || (type.hasAllowedVersion && !allowed10.contains(type.version)) {
+                            report.warning(
+                                path + "/type",
+                                "\(type.kind.rawValue) \(type.version) was introduced in Arazzo 1.1; Arazzo 1.0 allows draft-goessner-dispatch-jsonpath-00, xpath-30, xpath-20 and xpath-10.")
+                        }
+                    }
                     if type.kind == .jsonPath, type.hasAllowedVersion {
                         checkJSONPath(criterion.condition, version: type.version, path: path + "/condition", report: &report)
                     }
@@ -752,7 +762,13 @@ enum BuiltInRules {
             }
             switch expression.kind {
             case .invalid(let error):
-                report.error(path, "\(error)")
+                if !document.arazzo.supportsV1_1Features, Self.isValidArazzo10Expression(expression.rawValue) {
+                    report.warning(
+                        path,
+                        "\(error) – accepted by Arazzo 1.0's looser grammar, but not by Arazzo 1.1 or by expression evaluation.")
+                } else {
+                    report.error(path, "\(error)")
+                }
             case .sourceDescriptions(let name, _):
                 if document.sourceDescription(named: name) == nil {
                     report.error(path, "'\(expression.rawValue)' references unknown source description '\(name)'.")
@@ -981,7 +997,7 @@ enum BuiltInRules {
                     case .xPath:
                         break
                     }
-                    if replacement.target.isEmpty {
+                    if replacement.target.isEmpty, replacement.effectiveTargetKind(in: body) != .jsonPointer {
                         report.error(path, "target is REQUIRED and MUST NOT be empty.")
                     }
                 }
@@ -990,6 +1006,26 @@ enum BuiltInRules {
     }
 
     // MARK: Helpers
+
+    /// The Arazzo 1.0.x runtime expression ABNF, which allows any characters after most prefixes.
+    static func isValidArazzo10Expression(_ text: String) -> Bool {
+        if ["$url", "$method", "$statusCode"].contains(text) { return true }
+        for prefix in ["$inputs.", "$outputs.", "$steps.", "$workflows.", "$sourceDescriptions.", "$components."]
+        where text.hasPrefix(prefix) {
+            return !text.contains("{") && !text.contains("}")
+        }
+        for prefix in ["$request.", "$response."] where text.hasPrefix(prefix) {
+            let source = text.dropFirst(prefix.count)
+            if source.hasPrefix("header.") {
+                let token = source.dropFirst("header.".count)
+                return !token.isEmpty && token.allSatisfy(ExpressionGrammar.isTokenCharacter)
+            }
+            if source.hasPrefix("query.") || source.hasPrefix("path.") { return true }
+            if source == "body" { return true }
+            if source.hasPrefix("body#") { return (try? JSONPointer(String(source.dropFirst(5)))) != nil }
+        }
+        return false
+    }
 
     /// Reports JSONPath syntax errors. Expressions with embedded `{$...}` runtime expressions are only
     /// known at runtime and are skipped.
