@@ -34,7 +34,8 @@ struct ExamplesTestPorted: SextantTestCase {
             let name: String
             let age: Int
         }
-        let json = #"{"data":{"people":[{"name":"Rocco","age":42},{"name":"John","age":12},{"name":"Elizabeth","age":35},{"name":"Victoria","age":85}]}}"#
+        let json =
+            #"{"data":{"people":[{"name":"Rocco","age":42},{"name":"John","age":12},{"name":"Elizabeth","age":35},{"name":"Victoria","age":85}]}}"#
         let matches = try #require(sextantQuery(json, "$..[?(@.name)]"))
         let persons = try JSONDecoder().decode([Person].self, from: JSONEncoder().encode(matches))
         #expect(persons[0].name == "Rocco")
@@ -59,40 +60,57 @@ struct ExamplesTestPorted: SextantTestCase {
     }
 
     @Test func testSimple7_missingMembers() throws {
-        let json = #"{"data":{"attributes":{"about":null,"first_name":"John","full_name":"John Doe","last_name":"Doe","thumb_url":"https://www.example.com/image.png"}}}"#
-        let results = try #require(sextantQuery(json, "$.data.attributes['full_name','first_name','last_name','email','thumb_url']"))
+        let json =
+            #"{"data":{"attributes":{"about":null,"first_name":"John","full_name":"John Doe","last_name":"Doe","thumb_url":"https://www.example.com/image.png"}}}"#
+        let results = try #require(
+            sextantQuery(json, "$.data.attributes['full_name','first_name','last_name','email','thumb_url']"))
         #expect(results == ["John Doe", "John", "Doe", "https://www.example.com/image.png"])
     }
 
     @Test func testSimple8() throws {
-        let json = #"{"data":{"attributes":{"about":null,"social_connections":{"deviantart":null}},"id":"66480799","type":"user"}}"#
+        let json =
+            #"{"data":{"attributes":{"about":null,"social_connections":{"deviantart":null}},"id":"66480799","type":"user"}}"#
         #expect(sextantQuery(json, "$.data.id") == ["66480799"])
     }
 
     @Test func testSimple9() throws {
-        let json = #"{"DtCutOff":"2018-01-01 00:00:00","ServiceGroups":[{"ServiceName":"Service1","DtUpdate":"2021-11-22 00:00:00","OrderNumber":"123456","Active":"true"},{"ServiceName":"Service2","DtUpdate":"2021-11-20 00:00:00","OrderNumber":"123456","Active":true},{"ServiceName":"Service3","DtUpdate":"2021-11-10 00:00:00","OrderNumber":"123456","Active":false}]}"#
+        let json =
+            #"{"DtCutOff":"2018-01-01 00:00:00","ServiceGroups":[{"ServiceName":"Service1","DtUpdate":"2021-11-22 00:00:00","OrderNumber":"123456","Active":"true"},{"ServiceName":"Service2","DtUpdate":"2021-11-20 00:00:00","OrderNumber":"123456","Active":true},{"ServiceName":"Service3","DtUpdate":"2021-11-10 00:00:00","OrderNumber":"123456","Active":false}]}"#
         // Adapted: Sextant coerces the string "true" to a Bool and parses dates.
         #expect(sextantQuery(json, "$.ServiceGroups[*][?(@.ServiceName=='Service1')].Active") == ["true"])
-        #expect(sextantQuery(json, "$.ServiceGroups[*][?(@.ServiceName=='Service1')].DtUpdate") == ["2021-11-22 00:00:00"])
+        #expect(
+            sextantQuery(json, "$.ServiceGroups[*][?(@.ServiceName=='Service1')].DtUpdate") == ["2021-11-22 00:00:00"])
     }
 
     @Test func testSimple10_removeAndMap() throws {
-        var root = try JSONValue(parsing: #"{"data":{"people":[{"name":"Rocco","age":42,"gender":"m"},{"name":"John","age":12,"gender":"m"},{"name":"Elizabeth","age":35,"gender":"f"},{"name":"Victoria","age":85,"gender":"f"}]}}"#)
+        var root = try JSONValue(
+            parsing:
+                #"{"data":{"people":[{"name":"Rocco","age":42,"gender":"m"},{"name":"John","age":12,"gender":"m"},{"name":"Elizabeth","age":35,"gender":"f"},{"name":"Victoria","age":85,"gender":"f"}]}}"#
+        )
         try root.remove(jayway("$..people[?(@.gender=='f')]"))
         try root.map(jayway("$..age")) { $0.intValue.map { .integer($0 + 1) } ?? $0 }
         try root.map(jayway("$..name")) { $0.stringValue.map { .string($0.lowercased()) } }
-        #expect(root.jsonString == #"{"data":{"people":[{"name":"rocco","age":43,"gender":"m"},{"name":"john","age":13,"gender":"m"}]}}"#)
+        #expect(
+            root.jsonString
+                == #"{"data":{"people":[{"name":"rocco","age":43,"gender":"m"},{"name":"john","age":13,"gender":"m"}]}}"#
+        )
     }
 
     @Test func testSimple11_singleMap() throws {
-        var root = try JSONValue(parsing: #"{"data":{"people":[{"name":"Rocco","age":42,"gender":"m"},{"name":"John","age":12,"gender":"m"},{"name":"Elizabeth","age":35,"gender":"f"},{"name":"Victoria","age":85,"gender":"f"}]}}"#)
+        var root = try JSONValue(
+            parsing:
+                #"{"data":{"people":[{"name":"Rocco","age":42,"gender":"m"},{"name":"John","age":12,"gender":"m"},{"name":"Elizabeth","age":35,"gender":"f"},{"name":"Victoria","age":85,"gender":"f"}]}}"#
+        )
         try root.map(jayway("$..people[*] ")) { person in
             guard var object = person.objectValue, object["gender"] == "m" else { return nil }
             if let age = object["age"]?.intValue { object["age"] = .integer(age + 1) }
             if let name = object["name"]?.stringValue { object["name"] = .string(name.lowercased()) }
             return .object(object)
         }
-        #expect(root.jsonString == #"{"data":{"people":[{"name":"rocco","age":43,"gender":"m"},{"name":"john","age":13,"gender":"m"}]}}"#)
+        #expect(
+            root.jsonString
+                == #"{"data":{"people":[{"name":"rocco","age":43,"gender":"m"},{"name":"john","age":13,"gender":"m"}]}}"#
+        )
     }
 
     @Test func testSimple12_replaceWithAnyStructure() throws {
@@ -102,14 +120,21 @@ struct ExamplesTestPorted: SextantTestCase {
     }
 
     @Test func testSimple14_heterogeneousArray() throws {
-        let json = try JSONValue(parsing: #"[{"name":"add","inputs":[3,4]},{"name":"subtract","inputs":[6,3]},{"echo":"Hello, world"},{"name":"increment","input":41},{"echo":"Hello, world"}]"#)
+        let json = try JSONValue(
+            parsing:
+                #"[{"name":"add","inputs":[3,4]},{"name":"subtract","inputs":[6,3]},{"echo":"Hello, world"},{"name":"increment","input":41},{"echo":"Hello, world"}]"#
+        )
         let operations: [String: (JSONValue) -> Int?] = [
             "add": { input in
-                guard let lhs = input["inputs"]?[0]?.intValue, let rhs = input["inputs"]?[1]?.intValue else { return nil }
+                guard let lhs = input["inputs"]?[0]?.intValue, let rhs = input["inputs"]?[1]?.intValue else {
+                    return nil
+                }
                 return lhs + rhs
             },
             "subtract": { input in
-                guard let lhs = input["inputs"]?[0]?.intValue, let rhs = input["inputs"]?[1]?.intValue else { return nil }
+                guard let lhs = input["inputs"]?[0]?.intValue, let rhs = input["inputs"]?[1]?.intValue else {
+                    return nil
+                }
                 return lhs - rhs
             },
             "increment": { input in input["input"]?.intValue.map { $0 + 1 } },
@@ -138,7 +163,8 @@ struct ExamplesTestPorted: SextantTestCase {
             let timestamp: Int
         }
         let root = try JSONValue(parsing: #"[{"title":"Post 1","timestamp":1},{"title":"Post 2","timestamp":2}]"#)
-        let posts = try JSONDecoder().decode([LikedPost].self, from: JSONEncoder().encode(try jayway("$[*]").values(in: root)))
+        let posts = try JSONDecoder().decode(
+            [LikedPost].self, from: JSONEncoder().encode(try jayway("$[*]").values(in: root)))
         #expect(posts == [LikedPost(title: "Post 1", timestamp: 1), LikedPost(title: "Post 2", timestamp: 2)])
         let titles = try jayway("$..title").values(in: root).compactMap(\.stringValue)
         let timestamps = try jayway("$..timestamp").values(in: root).compactMap(\.intValue)
@@ -151,7 +177,8 @@ struct ExamplesTestPorted: SextantTestCase {
         #expect(JSONPath.validate("", dialect: .jayway) == "Path must start with $ or @")
         #expect(JSONPath.validate("$.", dialect: .jayway) == "Path must not end with a '.' or '..'")
         #expect(JSONPath.validate("$..", dialect: .jayway) == "Path must not end with a '.' or '..'")
-        #expect(JSONPath.validate("$.store.book[[", dialect: .jayway) == "Could not parse token starting at position 12.")
+        #expect(
+            JSONPath.validate("$.store.book[[", dialect: .jayway) == "Could not parse token starting at position 12.")
         #expect(JSONPath.validate("@.category", dialect: .jayway) == nil)
     }
 
@@ -176,7 +203,10 @@ private let largeDocument: JSONValue = {
     var events: [JSONValue] = []
     for index in 0..<2_000 {
         let commits: [JSONValue] = (0..<(index % 3)).map { commit in
-            ["sha": .string("sha-\(index)-\(commit)"), "author": ["name": .string("author \(commit)")], "type": "commit"]
+            [
+                "sha": .string("sha-\(index)-\(commit)"), "author": ["name": .string("author \(commit)")],
+                "type": "commit",
+            ]
         }
         events.append([
             "id": .string(String(index)),

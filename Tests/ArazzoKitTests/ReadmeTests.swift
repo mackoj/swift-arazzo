@@ -34,7 +34,8 @@ struct ReadmeTests {
 
     @Test func expressionsAndEvaluation() throws {
         let expression = try Arazzo.RuntimeExpression("$steps.login.outputs.token#/access")
-        #expect(expression.kind == .steps(stepId: "login", outputName: "token", pointer: JSONPointer(tokens: ["access"])))
+        #expect(
+            expression.kind == .steps(stepId: "login", outputName: "token", pointer: JSONPointer(tokens: ["access"])))
 
         var context = Arazzo.EvaluationContext()
         context.statusCode = 200
@@ -49,7 +50,8 @@ struct ReadmeTests {
     }
 
     @Test func jsonPathOnItsOwn() throws {
-        let json = #"{"store": {"book": [{"title": "Sayings of the Century", "author": "Nigel Rees", "price": 8.95}, {"title": "Sword of Honour", "price": 12.99}, {"title": "Moby Dick", "price": 8.99}], "bicycle": {"price": 19.95}}}"#
+        let json =
+            #"{"store": {"book": [{"title": "Sayings of the Century", "author": "Nigel Rees", "price": 8.95}, {"title": "Sword of Honour", "price": 12.99}, {"title": "Moby Dick", "price": 8.99}], "bicycle": {"price": 19.95}}}"#
         let document = try JSONValue(parsing: json)
         let path = try JSONPath("$.store.book[?@.price < 10].title")
         #expect(try path.values(in: document) == ["Sayings of the Century", "Moby Dick"])
@@ -65,7 +67,10 @@ struct ReadmeTests {
         try mutable.remove(JSONPath("$.store.bicycle"))
         try mutable.map(JSONPath("$..title")) { .string($0.stringValue!.uppercased()) }
         try mutable.set("new", at: JSONPointer("/store/book/0/tag"))
-        #expect(mutable["store"]?["book"]?[0] == ["title": "SAYINGS OF THE CENTURY", "author": "Nigel Rees", "price": 0, "tag": "new"])
+        #expect(
+            mutable["store"]?["book"]?[0] == [
+                "title": "SAYINGS OF THE CENTURY", "author": "Nigel Rees", "price": 0, "tag": "new",
+            ])
         #expect(mutable["store"]?["bicycle"] == nil)
     }
 

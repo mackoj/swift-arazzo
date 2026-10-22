@@ -5,54 +5,52 @@
 import JSONPath
 import Testing
 
-
-
 @Suite("Sextant: Filter")
 struct FilterTestPorted: SextantTestCase {
     let jsonObject = """
-        {
-            "int-key": 1,
-            "long-key": 3000000000,
-            "double-key": 10.1,
-            "boolean-key": true,
-            "null-key": null,
-            "string-key": "string",
-            "string-key-empty": "",
-            "char-key": "c",
-            "arr-empty": [
+            {
+                "int-key": 1,
+                "long-key": 3000000000,
+                "double-key": 10.1,
+                "boolean-key": true,
+                "null-key": null,
+                "string-key": "string",
+                "string-key-empty": "",
+                "char-key": "c",
+                "arr-empty": [
 
-            ],
-            "int-arr": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "string-arr": [
-                "a",
-                "b",
-                "c",
-                "d",
-                "e"
-            ]
-        }
-    """
-    
+                ],
+                "int-arr": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "string-arr": [
+                    "a",
+                    "b",
+                    "c",
+                    "d",
+                    "e"
+                ]
+            }
+        """
+
     // MARK - SMJFilterTest - EQ
 
     @Test func test_int_eq_evals() throws {
         expectCount(jsonObject, "[?(@.int-key == 1)]", 1)
         expectCount(jsonObject, "[?(@.int-key == 666)]", 0)
     }
-    
+
     @Test func test_int_eq_string_evals() throws {
         expectCount(jsonObject, "[?(@.int-key == '1')]", 1)
         expectCount(jsonObject, "[?(@.int-key == '666')]", 0)
 
         expectCount(jsonObject, "[?(1 == '1')]", 1)
         expectCount(jsonObject, "[?('1' == 1)]", 1)
-        
+
         expectCount(jsonObject, "[?(1 === '1')]", 0)
         expectCount(jsonObject, "[?('1' === 1)]", 0)
 
@@ -92,7 +90,7 @@ struct FilterTestPorted: SextantTestCase {
         expectCount(jsonObject, "[?(@.int-arr == [0,1,2,3])]", 0)
         expectCount(jsonObject, "[?(@.int-arr == [0,1,2,3,4,5])]", 0)
     }
-    
+
     // MARK - SMJFilterTest - NE
 
     @Test func test_int_ne_evals() throws {
@@ -126,7 +124,6 @@ struct FilterTestPorted: SextantTestCase {
         expectCount(jsonObject, "[?(@.null-key != '666')]", 1)
         expectCount(jsonObject, "[?(@.string-key != null)]", 1)
     }
-
 
     // MARK - SMJFilterTest - LT
 
@@ -229,7 +226,7 @@ struct FilterTestPorted: SextantTestCase {
     }
 
     // MARK - SMJFilterTest - IN
-    
+
     @Test func test_string_in_evals_child_node_no_field() throws {
         let json = "{\"foo\": [\"false\",\"true\"], \"bar\": {\"a\":\"true\"}}"
         expectCount(json, "$..[?(@ contains 'ru')]", 2)
@@ -322,7 +319,7 @@ struct FilterTestPorted: SextantTestCase {
 
         expectCount(jsonObject, "[?(@.string-key EXISTS true)]", 1)
         expectCount(jsonObject, "[?(@.string-key EXISTS false)]", 0)
-        
+
         expectCount(jsonObject, "[?(@.missing-key EXISTS true)]", 0)
         expectCount(jsonObject, "[?(@.missing-key EXISTS false)]", 1)
     }
@@ -335,7 +332,7 @@ struct FilterTestPorted: SextantTestCase {
 
         expectCount(jsonObject, "[?(@.int-key TYPE 'string')]", 0)
         expectCount(jsonObject, "[?(@.int-key TYPE 'number')]", 1)
-        
+
         expectCount(jsonObject, "[?(@.int-arr TYPE 'json')]", 1)
 
         expectCount(jsonObject, "[?(@.string-key TYPE @.string-key)]", 1)
@@ -350,7 +347,7 @@ struct FilterTestPorted: SextantTestCase {
 
         expectCount(jsonObject, "[?(@.string-key-empty EMPTY true)]", 1)
         expectCount(jsonObject, "[?(@.string-key-empty EMPTY false)]", 0)
-        
+
         expectCount(jsonObject, "[?(@.int-arr EMPTY false)]", 1)
         expectCount(jsonObject, "[?(@.int-arr EMPTY true)]", 0)
 
@@ -365,11 +362,11 @@ struct FilterTestPorted: SextantTestCase {
 
     @Test func test_or_and_filters_evaluates() throws {
         let json = """
-            {
-                "foo": true,
-                "bar": false
-            }
-        """
+                {
+                    "foo": true,
+                    "bar": false
+                }
+            """
         expectCount(json, "[?(@.foo == true || @.bar == true)]", 1)
         expectCount(json, "[?(@.foo == true && @.bar == true)]", 0)
     }
@@ -383,7 +380,6 @@ struct FilterTestPorted: SextantTestCase {
         let json = "{\"firstname\":\"Bob\",\"surname\":\"Smith\",\"age\":30}"
         expectCount(json, "[?((@.firstname == 'Bob' || @.firstname == 'Jane') && @.surname == 'Smith')]", 1)
     }
-
 
     // MARK - SMJFilterTest - Others
 

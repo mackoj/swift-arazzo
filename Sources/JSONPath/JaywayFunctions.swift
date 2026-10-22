@@ -4,7 +4,8 @@ enum JaywayFunctions {
         "avg", "stddev", "sum", "min", "max", "concat", "length", "size", "append", "keys", "first", "last", "index",
     ]
 
-    static func invoke(_ call: JSONPath.FunctionCall, input: JSONValue, evaluator: JaywayEvaluator) throws -> JSONValue {
+    static func invoke(_ call: JSONPath.FunctionCall, input: JSONValue, evaluator: JaywayEvaluator) throws -> JSONValue
+    {
         let name = call.name.lowercased()
         func arguments() throws -> [JSONValue] {
             try call.arguments.map { try argument($0, input: input, evaluator: evaluator) }
@@ -95,7 +96,9 @@ enum JaywayFunctions {
         }
     }
 
-    static func argument(_ argument: JSONPath.FunctionArgument, input: JSONValue, evaluator: JaywayEvaluator) throws
+    static func argument(
+        _ argument: JSONPath.FunctionArgument, input: JSONValue, evaluator: JaywayEvaluator
+    ) throws
         -> JSONValue
     {
         switch argument {
@@ -111,7 +114,9 @@ enum JaywayFunctions {
             }
             return .array(nodes.map(\.value))
         case .function(let call):
-            guard let value = try RFC9535Functions.evaluateValue(call, current: input, root: evaluator.root, jayway: evaluator)
+            guard
+                let value = try RFC9535Functions.evaluateValue(
+                    call, current: input, root: evaluator.root, jayway: evaluator)
             else { throw JSONPath.EvaluationError("Function argument did not resolve") }
             return value
         case .logical:

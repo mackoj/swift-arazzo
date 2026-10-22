@@ -39,7 +39,8 @@ enum BuiltInRules {
     static let selfURI = Arazzo.ValidationRule("self-uri") { document, report in
         guard let selfURI = document.selfURI else { return }
         if !document.arazzo.supportsV1_1Features {
-            report.warning("/$self", "`$self` was introduced in Arazzo 1.1 but the document declares \(document.arazzo).")
+            report.warning(
+                "/$self", "`$self` was introduced in Arazzo 1.1 but the document declares \(document.arazzo).")
         }
         if selfURI.contains("#") {
             report.error("/$self", "`$self` MUST NOT contain a fragment identifier.")
@@ -96,7 +97,8 @@ enum BuiltInRules {
                 guard let reference = Arazzo.WorkflowReference(dependency) else {
                     report.error(
                         path,
-                        "'\(dependency)' is neither a workflowId nor a $sourceDescriptions.<name>.<workflowId> expression.")
+                        "'\(dependency)' is neither a workflowId nor a $sourceDescriptions.<name>.<workflowId> expression."
+                    )
                     continue
                 }
                 switch reference {
@@ -124,7 +126,8 @@ enum BuiltInRules {
     static let steps = Arazzo.ValidationRule("steps") { document, report in
         for (wIndex, workflow) in document.workflows.enumerated() {
             if workflow.steps.isEmpty {
-                report.error("/workflows/\(wIndex)/steps", "Workflow '\(workflow.workflowId)' MUST have at least one step.")
+                report.error(
+                    "/workflows/\(wIndex)/steps", "Workflow '\(workflow.workflowId)' MUST have at least one step.")
             }
             var seen = Set<String>()
             for (sIndex, step) in workflow.steps.enumerated() {
@@ -138,10 +141,13 @@ enum BuiltInRules {
                     report.warning(path + "/stepId", "stepId '\(step.stepId)' SHOULD match \(identifierStrictPattern).")
                 }
                 if let criteria = step.successCriteria, criteria.isEmpty {
-                    report.error(path + "/successCriteria", "successCriteria, when provided, MUST contain at least one criterion.")
+                    report.error(
+                        path + "/successCriteria",
+                        "successCriteria, when provided, MUST contain at least one criterion.")
                 }
                 if step.requestBody != nil, step.target.isWorkflow {
-                    report.warning(path + "/requestBody", "requestBody is only applicable to operation steps, not workflow steps.")
+                    report.warning(
+                        path + "/requestBody", "requestBody is only applicable to operation steps, not workflow steps.")
                 }
             }
         }
@@ -156,13 +162,17 @@ enum BuiltInRules {
                 case .operationId(let id):
                     if id.hasPrefix("$") {
                         guard case .qualifiedOperationId(let name, _)? = step.target.operationReference else {
-                            report.error(path, "operationId '\(id)' must be a $sourceDescriptions.<name>.<operationId> expression.")
+                            report.error(
+                                path,
+                                "operationId '\(id)' must be a $sourceDescriptions.<name>.<operationId> expression.")
                             break
                         }
                         if let source = document.sourceDescription(named: name) {
                             if source.type == .arazzo {
                                 report.error(
-                                    path, "operationId references '\(name)', which is an Arazzo document; use workflowId instead.")
+                                    path,
+                                    "operationId references '\(name)', which is an Arazzo document; use workflowId instead."
+                                )
                             }
                         } else {
                             report.error(path, "operationId references unknown source description '\(name)'.")
@@ -173,7 +183,10 @@ enum BuiltInRules {
                             "With multiple (non arazzo) source descriptions, operationId '\(id)' MUST be written as $sourceDescriptions.<name>.\(id)."
                         )
                     } else if apiSources.isEmpty {
-                        report.error(path, "operationId '\(id)' cannot be resolved: there is no openapi or asyncapi source description.")
+                        report.error(
+                            path,
+                            "operationId '\(id)' cannot be resolved: there is no openapi or asyncapi source description."
+                        )
                     }
                 case .operationPath(let raw), .channelPath(let raw):
                     guard let reference = step.target.operationReference, let name = reference.sourceDescriptionName
@@ -186,17 +199,22 @@ enum BuiltInRules {
                     }
                     if let source = document.sourceDescription(named: name) {
                         if case .channelPath = step.target, let type = source.type, type != .asyncapi {
-                            report.warning(path, "channelPath references '\(name)', which is a \(type.rawValue) description, not asyncapi.")
+                            report.warning(
+                                path,
+                                "channelPath references '\(name)', which is a \(type.rawValue) description, not asyncapi."
+                            )
                         }
                         if source.type == .arazzo {
-                            report.error(path, "'\(name)' is an Arazzo document; operations cannot be referenced in it.")
+                            report.error(
+                                path, "'\(name)' is an Arazzo document; operations cannot be referenced in it.")
                         }
                     } else {
                         report.error(path, "References unknown source description '\(name)'.")
                     }
                 case .workflowId(let id):
                     guard let reference = Arazzo.WorkflowReference(id) else {
-                        report.error(path, "workflowId '\(id)' must be a workflowId or $sourceDescriptions.<name>.<workflowId>.")
+                        report.error(
+                            path, "workflowId '\(id)' must be a workflowId or $sourceDescriptions.<name>.<workflowId>.")
                         break
                     }
                     switch reference {
@@ -253,12 +271,15 @@ enum BuiltInRules {
             }
             // Cycles across explicit and implicit dependencies.
             let graph = Dictionary(
-                workflow.steps.map { ($0.stepId, Set(workflow.localDependencies(of: $0, components: document.components))) },
+                workflow.steps.map {
+                    ($0.stepId, Set(workflow.localDependencies(of: $0, components: document.components)))
+                },
                 uniquingKeysWith: { a, b in a.union(b) })
             if let cycle = Arazzo.Workflow.findCycle(in: graph) {
                 report.error(
                     "/workflows/\(wIndex)/steps",
-                    "Steps of workflow '\(workflow.workflowId)' form a dependency cycle: \(cycle.joined(separator: " → ")).")
+                    "Steps of workflow '\(workflow.workflowId)' form a dependency cycle: \(cycle.joined(separator: " → "))."
+                )
             }
         }
     }
@@ -286,13 +307,16 @@ enum BuiltInRules {
                     report.error(path + "/timeout", "timeout MUST be a non-negative number of milliseconds.")
                 }
                 if step.correlationId != nil, step.action != .receive {
-                    report.warning(path + "/correlationId", "correlationId only applies to asyncapi steps with action 'receive'.")
+                    report.warning(
+                        path + "/correlationId", "correlationId only applies to asyncapi steps with action 'receive'.")
                 }
                 if step.action != nil || step.correlationId != nil {
                     if let name = step.target.operationReference?.sourceDescriptionName,
                         let type = document.sourceDescription(named: name)?.type, type != .asyncapi
                     {
-                        report.warning(path + "/action", "action/correlationId only apply to asyncapi steps, but '\(name)' is \(type.rawValue).")
+                        report.warning(
+                            path + "/action",
+                            "action/correlationId only apply to asyncapi steps, but '\(name)' is \(type.rawValue).")
                     }
                     if step.target.isWorkflow {
                         report.warning(path + "/action", "action/correlationId do not apply to workflow steps.")
@@ -316,19 +340,23 @@ enum BuiltInRules {
         case action(Arazzo.ActionTarget?)
     }
 
-    static func parameterLists(in document: Arazzo.Document) -> [(String, [Arazzo.ReusableOr<Arazzo.Parameter>], ParameterSite)] {
+    static func parameterLists(
+        in document: Arazzo.Document
+    ) -> [(String, [Arazzo.ReusableOr<Arazzo.Parameter>], ParameterSite)] {
         var result: [(String, [Arazzo.ReusableOr<Arazzo.Parameter>], ParameterSite)] = []
         for (wIndex, workflow) in document.workflows.enumerated() {
             let wPath = "/workflows/\(wIndex)"
             result.append((wPath + "/parameters", workflow.parameters, .workflow))
             for (aIndex, action) in workflow.successActions.enumerated() {
                 if let action = action.inlineValue {
-                    result.append(("\(wPath)/successActions/\(aIndex)/parameters", action.parameters, .action(action.target)))
+                    result.append(
+                        ("\(wPath)/successActions/\(aIndex)/parameters", action.parameters, .action(action.target)))
                 }
             }
             for (aIndex, action) in workflow.failureActions.enumerated() {
                 if let action = action.inlineValue {
-                    result.append(("\(wPath)/failureActions/\(aIndex)/parameters", action.parameters, .action(action.target)))
+                    result.append(
+                        ("\(wPath)/failureActions/\(aIndex)/parameters", action.parameters, .action(action.target)))
                 }
             }
             for (sIndex, step) in workflow.steps.enumerated() {
@@ -336,21 +364,25 @@ enum BuiltInRules {
                 result.append((sPath + "/parameters", step.parameters, .step(step.target)))
                 for (aIndex, action) in step.onSuccess.enumerated() {
                     if let action = action.inlineValue {
-                        result.append(("\(sPath)/onSuccess/\(aIndex)/parameters", action.parameters, .action(action.target)))
+                        result.append(
+                            ("\(sPath)/onSuccess/\(aIndex)/parameters", action.parameters, .action(action.target)))
                     }
                 }
                 for (aIndex, action) in step.onFailure.enumerated() {
                     if let action = action.inlineValue {
-                        result.append(("\(sPath)/onFailure/\(aIndex)/parameters", action.parameters, .action(action.target)))
+                        result.append(
+                            ("\(sPath)/onFailure/\(aIndex)/parameters", action.parameters, .action(action.target)))
                     }
                 }
             }
         }
         for (key, action) in document.components.successActions {
-            result.append(("/components/successActions/\(escape(key))/parameters", action.parameters, .action(action.target)))
+            result.append(
+                ("/components/successActions/\(escape(key))/parameters", action.parameters, .action(action.target)))
         }
         for (key, action) in document.components.failureActions {
-            result.append(("/components/failureActions/\(escape(key))/parameters", action.parameters, .action(action.target)))
+            result.append(
+                ("/components/failureActions/\(escape(key))/parameters", action.parameters, .action(action.target)))
         }
         return result
     }
@@ -368,11 +400,16 @@ enum BuiltInRules {
                     parameter = value
                 case .reusable(let reusable):
                     guard let (type, name) = reusable.component else {
-                        report.error(path + "/reference", "'\(reusable.reference)' MUST reference $components.parameters.<name>.")
+                        report.error(
+                            path + "/reference", "'\(reusable.reference)' MUST reference $components.parameters.<name>."
+                        )
                         continue
                     }
                     guard type == .parameters else {
-                        report.error(path + "/reference", "'\(reusable.reference)' references \(type.rawValue); parameters MUST reference $components.parameters.")
+                        report.error(
+                            path + "/reference",
+                            "'\(reusable.reference)' references \(type.rawValue); parameters MUST reference $components.parameters."
+                        )
                         continue
                     }
                     guard var resolved = document.components.parameters[name] else {
@@ -401,23 +438,29 @@ enum BuiltInRules {
                     if parameter.location == nil, !target.isWorkflow {
                         report.error(
                             path + "/in",
-                            "Parameter '\(parameter.name)' MUST specify `in` because the step targets an operation, not a workflow.")
+                            "Parameter '\(parameter.name)' MUST specify `in` because the step targets an operation, not a workflow."
+                        )
                     }
                 case .action(let target):
                     if parameter.location != nil {
-                        report.error(path + "/in", "Action parameters map to workflow inputs; the `in` field MUST NOT be used.")
+                        report.error(
+                            path + "/in", "Action parameters map to workflow inputs; the `in` field MUST NOT be used.")
                     }
                     if target?.workflowId == nil {
-                        report.warning(path, "Action parameters are only passed to a target workflowId; this action has none.")
+                        report.warning(
+                            path, "Action parameters are only passed to a target workflowId; this action has none.")
                     }
                 }
             }
             if locations.contains(.querystring) && locations.contains(.query) {
-                report.warning(listPath, "A 'querystring' parameter cannot coexist with 'query' parameters for the same operation.")
+                report.warning(
+                    listPath, "A 'querystring' parameter cannot coexist with 'query' parameters for the same operation."
+                )
             }
         }
         for (key, parameter) in document.components.parameters where parameter.location == .querystring && !v11 {
-            report.warning("/components/parameters/\(escape(key))/in", "The 'querystring' location was introduced in Arazzo 1.1.")
+            report.warning(
+                "/components/parameters/\(escape(key))/in", "The 'querystring' location was introduced in Arazzo 1.1.")
         }
     }
 
@@ -429,7 +472,8 @@ enum BuiltInRules {
             case .step(let id)?:
                 if let workflow {
                     if workflow.step(id: id) == nil {
-                        report.error(path + "/stepId", "stepId '\(id)' MUST be a step of workflow '\(workflow.workflowId)'.")
+                        report.error(
+                            path + "/stepId", "stepId '\(id)' MUST be a step of workflow '\(workflow.workflowId)'.")
                     }
                 } else if !document.workflows.contains(where: { $0.step(id: id) != nil }) {
                     report.warning(path + "/stepId", "No workflow has a step '\(id)'.")
@@ -443,7 +487,9 @@ enum BuiltInRules {
                 case .sourceDescription(let name, _)?:
                     checkArazzoSource(name, in: document, path: path + "/workflowId", report: &report)
                 case nil:
-                    report.error(path + "/workflowId", "'\(id)' must be a workflowId or $sourceDescriptions.<name>.<workflowId>.")
+                    report.error(
+                        path + "/workflowId", "'\(id)' must be a workflowId or $sourceDescriptions.<name>.<workflowId>."
+                    )
                 }
             case nil:
                 break
@@ -479,7 +525,9 @@ enum BuiltInRules {
                         report.warning(path + "/value", "Reusable `value` only applies to parameter references.")
                     }
                     guard let (type, componentName) = reusable.component, type == expected else {
-                        report.error(path + "/reference", "'\(reusable.reference)' MUST reference $components.\(expected.rawValue).<name>.")
+                        report.error(
+                            path + "/reference",
+                            "'\(reusable.reference)' MUST reference $components.\(expected.rawValue).<name>.")
                         continue
                     }
                     guard let resolved = lookup(componentName) else {
@@ -502,7 +550,8 @@ enum BuiltInRules {
                 path: wPath + "/successActions")
             checkList(
                 workflow.failureActions, expected: .failureActions, lookup: { document.components.failureActions[$0] },
-                name: \.name, check: { checkFailure($0, workflow: workflow, path: $1) }, path: wPath + "/failureActions")
+                name: \.name, check: { checkFailure($0, workflow: workflow, path: $1) }, path: wPath + "/failureActions"
+            )
             for (sIndex, step) in workflow.steps.enumerated() {
                 let sPath = "\(wPath)/steps/\(sIndex)"
                 checkList(
@@ -517,14 +566,20 @@ enum BuiltInRules {
                     if entry.reusableValue != nil, let action = try? document.components.resolve(entry),
                         case .step(let id)? = action.target, workflow.step(id: id) == nil
                     {
-                        report.error("\(sPath)/onSuccess/\(aIndex)", "Referenced action targets step '\(id)', which is not in workflow '\(workflow.workflowId)'.")
+                        report.error(
+                            "\(sPath)/onSuccess/\(aIndex)",
+                            "Referenced action targets step '\(id)', which is not in workflow '\(workflow.workflowId)'."
+                        )
                     }
                 }
                 for (aIndex, entry) in step.onFailure.enumerated() {
                     if entry.reusableValue != nil, let action = try? document.components.resolve(entry),
                         case .step(let id)? = action.target, workflow.step(id: id) == nil
                     {
-                        report.error("\(sPath)/onFailure/\(aIndex)", "Referenced action targets step '\(id)', which is not in workflow '\(workflow.workflowId)'.")
+                        report.error(
+                            "\(sPath)/onFailure/\(aIndex)",
+                            "Referenced action targets step '\(id)', which is not in workflow '\(workflow.workflowId)'."
+                        )
                     }
                 }
             }
@@ -586,7 +641,8 @@ enum BuiltInRules {
                         do {
                             _ = try Regex(criterion.condition)
                         } catch {
-                            report.error(path + "/condition", "Invalid regular expression '\(criterion.condition)': \(error)")
+                            report.error(
+                                path + "/condition", "Invalid regular expression '\(criterion.condition)': \(error)")
                         }
                     }
                 case .jsonPath:
@@ -595,14 +651,19 @@ enum BuiltInRules {
                     break
                 case .expressionType(let type):
                     if type.kind == .jsonPath, type.hasAllowedVersion {
-                        checkJSONPath(criterion.condition, version: type.version, path: path + "/condition", report: &report)
+                        checkJSONPath(
+                            criterion.condition, version: type.version, path: path + "/condition", report: &report)
                     }
                     if type.kind == .jsonPointer {
-                        report.error(path + "/type", "Criterion types are simple, regex, jsonpath or xpath; jsonpointer is not a condition language.")
+                        report.error(
+                            path + "/type",
+                            "Criterion types are simple, regex, jsonpath or xpath; jsonpointer is not a condition language."
+                        )
                     } else if !type.hasAllowedVersion {
                         report.error(
                             path + "/type/version",
-                            "'\(type.version)' is not a valid \(type.kind.rawValue) version (allowed: \(type.kind.allowedVersions.map(\.rawValue).joined(separator: ", "))).")
+                            "'\(type.version)' is not a valid \(type.kind.rawValue) version (allowed: \(type.kind.allowedVersions.map(\.rawValue).joined(separator: ", ")))."
+                        )
                     }
                 }
             }
@@ -617,7 +678,8 @@ enum BuiltInRules {
         if case .expressionType(let expressionType) = type, !expressionType.hasAllowedVersion {
             report.error(
                 path + "/version",
-                "'\(expressionType.version)' is not a valid \(expressionType.kind.rawValue) version (allowed: \(expressionType.kind.allowedVersions.map(\.rawValue).joined(separator: ", "))).")
+                "'\(expressionType.version)' is not a valid \(expressionType.kind.rawValue) version (allowed: \(expressionType.kind.allowedVersions.map(\.rawValue).joined(separator: ", ")))."
+            )
         }
     }
 
@@ -632,7 +694,8 @@ enum BuiltInRules {
         }
         checkSelectorType(selector.type, path: path + "/type", report: &report)
         if selector.type.kind == .jsonPath {
-            checkJSONPath(selector.selector, version: selector.type.effectiveVersion, path: path + "/selector", report: &report)
+            checkJSONPath(
+                selector.selector, version: selector.type.effectiveVersion, path: path + "/selector", report: &report)
         }
         if selector.type.kind == .jsonPointer, (try? JSONPointer(selector.selector)) == nil {
             report.error(path + "/selector", "'\(selector.selector)' is not a valid JSON Pointer.")
@@ -688,14 +751,17 @@ enum BuiltInRules {
                 let sPath = "/workflows/\(wIndex)/steps/\(sIndex)"
                 outputs(step.outputs, path: sPath + "/outputs")
                 if let body = step.requestBody {
-                    if let payload = body.payload { found += selectorsInJSON(payload, path: sPath + "/requestBody/payload") }
+                    if let payload = body.payload {
+                        found += selectorsInJSON(payload, path: sPath + "/requestBody/payload")
+                    }
                     for (rIndex, replacement) in body.replacements.enumerated() {
                         let rPath = "\(sPath)/requestBody/replacements/\(rIndex)"
                         found += selectors(in: replacement.value, path: rPath + "/value")
                         if let type = replacement.targetSelectorType {
                             checkSelectorType(type, path: rPath + "/targetSelectorType", report: &report)
                             if !v11 {
-                                report.warning(rPath + "/targetSelectorType", "targetSelectorType was introduced in Arazzo 1.1.")
+                                report.warning(
+                                    rPath + "/targetSelectorType", "targetSelectorType was introduced in Arazzo 1.1.")
                             }
                         }
                     }
@@ -712,12 +778,14 @@ enum BuiltInRules {
     static let outputs = Arazzo.ValidationRule("output-names") { document, report in
         for (wIndex, workflow) in document.workflows.enumerated() {
             for key in workflow.outputs.keys where !ExpressionGrammar.isIdentifier(key) {
-                report.error("/workflows/\(wIndex)/outputs/\(escape(key))", "Output name '\(key)' MUST match \(keyPattern).")
+                report.error(
+                    "/workflows/\(wIndex)/outputs/\(escape(key))", "Output name '\(key)' MUST match \(keyPattern).")
             }
             for (sIndex, step) in workflow.steps.enumerated() {
                 for key in step.outputs.keys where !ExpressionGrammar.isIdentifier(key) {
                     report.error(
-                        "/workflows/\(wIndex)/steps/\(sIndex)/outputs/\(escape(key))", "Output name '\(key)' MUST match \(keyPattern).")
+                        "/workflows/\(wIndex)/steps/\(sIndex)/outputs/\(escape(key))",
+                        "Output name '\(key)' MUST match \(keyPattern).")
                 }
             }
         }
@@ -748,7 +816,8 @@ enum BuiltInRules {
             if expression.usesNonStandardNotation {
                 report.warning(
                     path,
-                    "'\(expression.rawValue)' uses dotted-path notation; the ABNF form is '\(expression.canonicalString)'.")
+                    "'\(expression.rawValue)' uses dotted-path notation; the ABNF form is '\(expression.canonicalString)'."
+                )
             }
             switch expression.kind {
             case .invalid(let error):
@@ -780,7 +849,9 @@ enum BuiltInRules {
                 if let workflow, let schema = try? document.resolvedInputs(for: workflow) {
                     checkInputName(name, schema: schema, path: path, expression: expression)
                 } else if let workflow, workflow.inputs == nil {
-                    report.warning(path, "'\(expression.rawValue)' is used but workflow '\(workflow.workflowId)' declares no inputs.")
+                    report.warning(
+                        path,
+                        "'\(expression.rawValue)' is used but workflow '\(workflow.workflowId)' declares no inputs.")
                 }
             case .self:
                 if document.selfURI == nil {
@@ -797,7 +868,9 @@ enum BuiltInRules {
             guard !schema.isComposite, !schema.properties.isEmpty else { return }
             let root = String(name.split(separator: ".").first ?? Substring(name))
             if schema.properties[name] == nil, schema.properties[root] == nil {
-                report.warning(path, "'\(expression.rawValue)' references input '\(name)', which the inputs schema does not declare.")
+                report.warning(
+                    path,
+                    "'\(expression.rawValue)' references input '\(name)', which the inputs schema does not declare.")
             }
         }
 
@@ -806,7 +879,10 @@ enum BuiltInRules {
         ) {
             guard case .steps(let stepId, let outputName, _) = expression.kind else { return }
             guard let index = workflow.steps.firstIndex(where: { $0.stepId == stepId }) else {
-                report.error(path, "'\(expression.rawValue)' references unknown step '\(stepId)' in workflow '\(workflow.workflowId)'.")
+                report.error(
+                    path,
+                    "'\(expression.rawValue)' references unknown step '\(stepId)' in workflow '\(workflow.workflowId)'."
+                )
                 return
             }
             let target = workflow.steps[index]
@@ -825,7 +901,8 @@ enum BuiltInRules {
             switch json {
             case .string(let string):
                 for invalid in Arazzo.ExpressionTemplate(string).invalidExpressions {
-                    report.warning(path, "Embedded expression '{\(invalid.text)}' is invalid: \(invalid.error.message).")
+                    report.warning(
+                        path, "Embedded expression '{\(invalid.text)}' is invalid: \(invalid.error.message).")
                 }
             case .array(let values):
                 for (index, value) in values.enumerated() { checkStrings(in: value, path: "\(path)/\(index)") }
@@ -841,7 +918,10 @@ enum BuiltInRules {
                 do {
                     _ = try Arazzo.RuntimeExpression(string)
                 } catch let error as Arazzo.RuntimeExpression.ParseError {
-                    report.warning(path, "'\(string)' looks like a runtime expression but is not one (\(error.message)); it will be sent literally.")
+                    report.warning(
+                        path,
+                        "'\(string)' looks like a runtime expression but is not one (\(error.message)); it will be sent literally."
+                    )
                 } catch {}
             }
             if case .literal(let json) = value { checkStrings(in: json, path: path) }
@@ -855,7 +935,9 @@ enum BuiltInRules {
             let wPath = "/workflows/\(wIndex)"
             for (pIndex, entry) in workflow.parameters.enumerated() {
                 if let parameter = try? document.components.resolve(entry) {
-                    checkValue(parameter.value, path: "\(wPath)/parameters/\(pIndex)/value", workflow: workflow, stepIndex: nil)
+                    checkValue(
+                        parameter.value, path: "\(wPath)/parameters/\(pIndex)/value", workflow: workflow, stepIndex: nil
+                    )
                 }
             }
             for (key, output) in workflow.outputs {
@@ -864,7 +946,10 @@ enum BuiltInRules {
                 checkCommon(expression, path: path, workflow: workflow)
                 checkStepReference(expression, path: path, workflow: workflow, fromIndex: nil)
                 if expression.isStepRuntimeOnly {
-                    report.warning(path, "'\(expression.rawValue)' is only available while a step executes; workflow outputs usually reference $steps.")
+                    report.warning(
+                        path,
+                        "'\(expression.rawValue)' is only available while a step executes; workflow outputs usually reference $steps."
+                    )
                 }
             }
             let workflowActionCriteria: [(String, [Arazzo.Criterion])] =
@@ -887,16 +972,21 @@ enum BuiltInRules {
                 let sPath = "\(wPath)/steps/\(sIndex)"
                 for (pIndex, entry) in step.parameters.enumerated() {
                     if let parameter = try? document.components.resolve(entry) {
-                        checkValue(parameter.value, path: "\(sPath)/parameters/\(pIndex)/value", workflow: workflow, stepIndex: sIndex)
+                        checkValue(
+                            parameter.value, path: "\(sPath)/parameters/\(pIndex)/value", workflow: workflow,
+                            stepIndex: sIndex)
                     }
                 }
                 if let body = step.requestBody {
                     if let payload = body.payload {
-                        checkValue(.literal(payload), path: sPath + "/requestBody/payload", workflow: workflow, stepIndex: sIndex)
+                        checkValue(
+                            .literal(payload), path: sPath + "/requestBody/payload", workflow: workflow,
+                            stepIndex: sIndex)
                     }
                     for (rIndex, replacement) in body.replacements.enumerated() {
                         checkValue(
-                            replacement.value, path: "\(sPath)/requestBody/replacements/\(rIndex)/value", workflow: workflow,
+                            replacement.value, path: "\(sPath)/requestBody/replacements/\(rIndex)/value",
+                            workflow: workflow,
                             stepIndex: sIndex)
                     }
                 }
@@ -931,8 +1021,12 @@ enum BuiltInRules {
             }
         }
         let componentCriteria: [(String, [Arazzo.Criterion])] =
-            document.components.successActions.map { ("/components/successActions/\(escape($0.key))", $0.value.criteria) }
-            + document.components.failureActions.map { ("/components/failureActions/\(escape($0.key))", $0.value.criteria) }
+            document.components.successActions.map {
+                ("/components/successActions/\(escape($0.key))", $0.value.criteria)
+            }
+            + document.components.failureActions.map {
+                ("/components/failureActions/\(escape($0.key))", $0.value.criteria)
+            }
         for (aPath, criteria) in componentCriteria {
             for (cIndex, criterion) in criteria.enumerated() {
                 for expression in criterion.runtimeExpressions {
@@ -949,7 +1043,9 @@ enum BuiltInRules {
 
     static let inputs = Arazzo.ValidationRule("inputs") { document, report in
         for (wIndex, workflow) in document.workflows.enumerated() {
-            guard let schema = workflow.inputs, let ref = schema.ref, ref.hasPrefix("#/components/inputs/") else { continue }
+            guard let schema = workflow.inputs, let ref = schema.ref, ref.hasPrefix("#/components/inputs/") else {
+                continue
+            }
             do {
                 _ = try document.components.resolveInputs(schema)
             } catch {
@@ -1000,7 +1096,10 @@ enum BuiltInRules {
         guard !Arazzo.ExpressionTemplate(expression).hasExpressions else { return }
         let dialect = Arazzo.BuiltInQueries.dialect(for: version)
         if let message = JSONPath.validate(expression, dialect: dialect) {
-            report.error(path, "Invalid JSONPath (\(dialect == .rfc9535 ? "RFC 9535" : "Goessner/Jayway")) '\(expression)': \(message)")
+            report.error(
+                path,
+                "Invalid JSONPath (\(dialect == .rfc9535 ? "RFC 9535" : "Goessner/Jayway")) '\(expression)': \(message)"
+            )
         }
     }
 
@@ -1012,7 +1111,9 @@ enum BuiltInRules {
             return
         }
         if let type = source.type, type != .arazzo {
-            report.error(path, "Source description '\(name)' is \(type.rawValue); workflows can only be referenced in arazzo sources.")
+            report.error(
+                path,
+                "Source description '\(name)' is \(type.rawValue); workflows can only be referenced in arazzo sources.")
         }
     }
 

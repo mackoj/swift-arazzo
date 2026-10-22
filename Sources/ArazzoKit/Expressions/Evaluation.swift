@@ -262,7 +262,9 @@ extension Arazzo.Value {
             return .string(try template.render { try resolver.resolve($0) })
         case .array(let values):
             return .array(
-                try values.map { try Arazzo.Value(interpreting: $0).evaluate(in: resolver, queryEvaluator: queryEvaluator) })
+                try values.map {
+                    try Arazzo.Value(interpreting: $0).evaluate(in: resolver, queryEvaluator: queryEvaluator)
+                })
         case .object(let object):
             return .object(
                 try object.mapValues {
@@ -385,10 +387,12 @@ extension Arazzo {
             case .inputs(let name, let pointer):
                 return Self.lookup(name, in: inputs, pointer: pointer)
             case .outputs(let name, let pointer):
-                return Self.lookup(name, in: .object(OrderedDictionary(outputs.map { ($0.key, $0.value) })), pointer: pointer)
+                return Self.lookup(
+                    name, in: .object(OrderedDictionary(outputs.map { ($0.key, $0.value) })), pointer: pointer)
             case .steps(let stepId, let name, let pointer):
                 guard let outputs = stepOutputs[stepId] else { return nil }
-                return Self.lookup(name, in: .object(OrderedDictionary(outputs.map { ($0.key, $0.value) })), pointer: pointer)
+                return Self.lookup(
+                    name, in: .object(OrderedDictionary(outputs.map { ($0.key, $0.value) })), pointer: pointer)
             case .workflows(let workflowId, let field, let name, let pointer):
                 switch field {
                 case .inputs:
@@ -473,7 +477,9 @@ extension Arazzo.RequestBody {
             let kind = replacement.effectiveTargetKind(in: self)
             let version = replacement.targetSelectorType?.effectiveVersion ?? kind.defaultVersion
             if let queryEvaluator, queryEvaluator.supports(kind, version: version), kind != .jsonPointer {
-                for location in try queryEvaluator.locate(replacement.target, kind: kind, version: version, in: document) {
+                for location in try queryEvaluator.locate(
+                    replacement.target, kind: kind, version: version, in: document)
+                {
                     try document.set(value, at: location)
                 }
                 continue
@@ -486,7 +492,9 @@ extension Arazzo.RequestBody {
                     throw Arazzo.EvaluationError.invalidSelector("\(error)")
                 }
             case .jsonPath, .xPath:
-                for location in try Arazzo.BuiltInQueries.locate(replacement.target, kind: kind, version: version, in: document) {
+                for location in try Arazzo.BuiltInQueries.locate(
+                    replacement.target, kind: kind, version: version, in: document)
+                {
                     try document.set(value, at: location)
                 }
             }

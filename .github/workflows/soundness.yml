@@ -1,0 +1,56 @@
+name: Soundness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  soundness:
+    name: Soundness
+    uses: swiftlang/github-workflows/.github/workflows/soundness.yml@0.0.16
+    with:
+      # Diffs the public API against the pull request's base branch, which a push doesn't have.
+      api_breakage_check_enabled: ${{ github.event_name == 'pull_request' }}
+      # Sources carry no per-file license header; the MIT LICENSE covers the package.
+      license_header_check_enabled: false
+      # Not adopted here: the word-list check flags ordinary terms like "hang" in error messages.
+      unacceptable_language_check_enabled: false
+      # No Python in the repository.
+      python_lint_check_enabled: false
+
+  actionlint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run actionlint
+        run: pipx run --spec actionlint-py==1.7.12.25 actionlint
+
+  zizmor:
+    name: Workflow security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        env:
+          # Online audits (impostor commits, known-vulnerable actions) read public repositories.
+          GH_TOKEN: ${{ github.token }}
+        run: pipx run --spec zizmor==1.30.1 zizmor --format github .github/workflows

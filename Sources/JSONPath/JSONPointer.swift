@@ -97,4 +97,3 @@ public struct JSONPointer: Hashable, Sendable, CustomStringConvertible, Codable 
         try container.encode(description)
     }
 }
-

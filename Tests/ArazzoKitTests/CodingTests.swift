@@ -123,7 +123,8 @@ struct CodingTests {
         #expect(simple.effectiveType == .simple)
         let typed = try decodeYAML(
             Arazzo.Criterion.self,
-            "context: $response.body\ncondition: $.a\ntype:\n  type: jsonpath\n  version: draft-goessner-dispatch-jsonpath-00")
+            "context: $response.body\ncondition: $.a\ntype:\n  type: jsonpath\n  version: draft-goessner-dispatch-jsonpath-00"
+        )
         #expect(typed.type == .expressionType(.init(kind: .jsonPath, version: .draftGoessnerDispatchJSONPath00)))
         #expect(throws: DecodingError.self) {
             try decodeYAML(Arazzo.Criterion.self, "condition: x\ntype: sql")
@@ -188,7 +189,8 @@ struct CodingTests {
                             stepId: "adopt",
                             target: .operationId("adoptPet"),
                             parameters: [.inline(.init(name: "petId", in: .path, value: "$inputs.petId"))],
-                            requestBody: .init(contentType: "application/json", payload: ["name": "$steps.getPet.outputs.name"]),
+                            requestBody: .init(
+                                contentType: "application/json", payload: ["name": "$steps.getPet.outputs.name"]),
                             onFailure: [.inline(.retry(name: "retry", after: 2, limit: 3))]
                         ),
                     ],

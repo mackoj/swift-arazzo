@@ -5,39 +5,37 @@
 import JSONPath
 import Testing
 
-
-
 @Suite("Sextant: PropertyPathToken")
 struct PropertyPathTokenTestsPorted: SextantTestCase {
     let jsonSimpleMap = """
-        {
-            "foo": "foo-val",
-            "bar": "bar-val",
-            "baz": {
-                "baz-child": "baz-child-val"
+            {
+                "foo": "foo-val",
+                "bar": "bar-val",
+                "baz": {
+                    "baz-child": "baz-child-val"
+                }
             }
-        }
-    """
-    
+        """
+
     let jsonSimpleArray = """
-        [
-            {
-                "foo": "foo-val-0",
-                "bar": "bar-val-0",
-                "baz": {
-                    "baz-child": "baz-child-val"
+            [
+                {
+                    "foo": "foo-val-0",
+                    "bar": "bar-val-0",
+                    "baz": {
+                        "baz-child": "baz-child-val"
+                    }
+                },
+                {
+                    "foo": "foo-val-1",
+                    "bar": "bar-val-1",
+                    "baz": {
+                        "baz-child": "baz-child-val"
+                    }
                 }
-            },
-            {
-                "foo": "foo-val-1",
-                "bar": "bar-val-1",
-                "baz": {
-                    "baz-child": "baz-child-val"
-                }
-            }
-        ]
-    """
-    
+            ]
+        """
+
     @Test func test_property_not_found() throws {
         expectCount(jsonSimpleMap, "$.not-found", 0)
     }

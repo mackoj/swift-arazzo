@@ -2,7 +2,7 @@ import JSONPath
 extension Arazzo {
     /// A JSON Schema (Draft 2020-12) used for workflow `inputs` and `components.inputs`.
     ///
-    /// The schema is kept losslessly as a ``JSONValue``; convenience accessors cover the
+    /// The schema is kept losslessly as a `JSONValue` (from the `JSONPath` module); convenience accessors cover the
     /// keywords Arazzo tooling typically needs. Boolean schemas (`true` / `false`) are supported.
     public struct JSONSchema: Hashable, Sendable, Codable, ExpressibleByDictionaryLiteral {
         public var value: JSONValue
