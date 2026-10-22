@@ -1,0 +1,15 @@
+extends: default
+
+ignore: |
+  .build/
+  # Upstream fixtures are kept byte for byte.
+  Tests/*/Fixtures/
+
+rules:
+  # GitHub Actions files don't use document markers.
+  document-start: disable
+  # Expressions and descriptions in workflows are routinely long.
+  line-length: disable
+  # `on:` is a workflow key, not a boolean.
+  truthy:
+    check-keys: false
