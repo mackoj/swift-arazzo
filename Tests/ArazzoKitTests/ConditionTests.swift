@@ -21,49 +21,53 @@ struct ConditionTests {
         stepOutputs: ["login": ["token": "abc"]]
     )
 
-    @Test("Simple conditions", arguments: [
-        ("$statusCode == 200", true),
-        ("$statusCode != 200", false),
-        ("$statusCode == 200 && $response.body.data != null", true),
-        ("$statusCode == 404 || $response.body#/count > $inputs.threshold", true),
-        ("$response.body.count > $inputs.threshold", true),
-        ("$response.body#/count >= 3 && $response.body#/count <= 3", true),
-        ("$response.body#/count < 3", false),
-        ("$response.body#/0 == null", true),
-        ("$response.body#/empty == null", true),
-        ("$response.body#/missing != null", false),
-        ("null == null", true),
-        ("$response.body#/status == 'available'", true),  // case-insensitive
-        ("$response.body#/status == $inputs.expectedStatus", true),
-        ("$response.header.x-rate-limit == 100", true),  // numeric string coercion, header case-insensitive
-        ("$response.header.X-Rate-Limit > 99.5", true),
-        ("$response.body#/pets/1/name == 'TOM''S'", true),  // escaped quote
-        ("$response.body.pets[0].name == 'rex'", true),
-        ("$response.body#/pets[1]['name'] == 'tom''s'", true),
-        ("!($statusCode == 500)", true),
-        ("!$response.body#/missing", true),
-        ("($statusCode == 200 || $statusCode == 201) && $method == 'get'", true),
-        ("$steps.login.outputs.token == 'ABC'", true),
-        ("true", true),
-        ("false || true && false", false),
-        ("$response.body#/count", false),  // only `true` passes
-        ("$response.body#/status > 5", false),
-    ])
+    @Test(
+        "Simple conditions",
+        arguments: [
+            ("$statusCode == 200", true),
+            ("$statusCode != 200", false),
+            ("$statusCode == 200 && $response.body.data != null", true),
+            ("$statusCode == 404 || $response.body#/count > $inputs.threshold", true),
+            ("$response.body.count > $inputs.threshold", true),
+            ("$response.body#/count >= 3 && $response.body#/count <= 3", true),
+            ("$response.body#/count < 3", false),
+            ("$response.body#/0 == null", true),
+            ("$response.body#/empty == null", true),
+            ("$response.body#/missing != null", false),
+            ("null == null", true),
+            ("$response.body#/status == 'available'", true),  // case-insensitive
+            ("$response.body#/status == $inputs.expectedStatus", true),
+            ("$response.header.x-rate-limit == 100", true),  // numeric string coercion, header case-insensitive
+            ("$response.header.X-Rate-Limit > 99.5", true),
+            ("$response.body#/pets/1/name == 'TOM''S'", true),  // escaped quote
+            ("$response.body.pets[0].name == 'rex'", true),
+            ("$response.body#/pets[1]['name'] == 'tom''s'", true),
+            ("!($statusCode == 500)", true),
+            ("!$response.body#/missing", true),
+            ("($statusCode == 200 || $statusCode == 201) && $method == 'get'", true),
+            ("$steps.login.outputs.token == 'ABC'", true),
+            ("true", true),
+            ("false || true && false", false),
+            ("$response.body#/count", false),  // only `true` passes
+            ("$response.body#/status > 5", false),
+        ])
     func evaluates(_ condition: String, _ expected: Bool) throws {
         let parsed = try Arazzo.Condition(condition)
         #expect(try parsed.evaluate(in: Self.context) == expected, "\(parsed)")
     }
 
-    @Test("Rejects malformed conditions", arguments: [
-        "",
-        "$statusCode = 200",
-        "$statusCode == ",
-        "$statusCode & 1",
-        "($statusCode == 200",
-        "$statusCode == 'unterminated",
-        "$steps.login.token == 1",
-        "status == 200",
-    ])
+    @Test(
+        "Rejects malformed conditions",
+        arguments: [
+            "",
+            "$statusCode = 200",
+            "$statusCode == ",
+            "$statusCode & 1",
+            "($statusCode == 200",
+            "$statusCode == 'unterminated",
+            "$steps.login.token == 1",
+            "status == 200",
+        ])
     func rejects(_ condition: String) {
         #expect(throws: Arazzo.Condition.ParseError.self) { try Arazzo.Condition(condition) }
     }
@@ -93,12 +97,15 @@ struct ConditionTests {
             type: .jsonPath)
         #expect(try named.evaluate(in: Self.context))
 
-        let none = Arazzo.Criterion(context: expression("$response.body"), condition: "$.pets[?@.id > 5]", type: .jsonPath)
+        let none = Arazzo.Criterion(
+            context: expression("$response.body"), condition: "$.pets[?@.id > 5]", type: .jsonPath)
         #expect(try !none.evaluate(in: Self.context))
 
         // RFC 9535 (the default) applies a filter to the members of the root object...
         let spec = "$[?count(@.pets) > 0]"
-        #expect(try !Arazzo.Criterion(context: expression("$response.body"), condition: spec, type: .jsonPath).evaluate(in: Self.context))
+        #expect(
+            try !Arazzo.Criterion(context: expression("$response.body"), condition: spec, type: .jsonPath).evaluate(
+                in: Self.context))
         // ...while the Goessner draft version uses Jayway semantics and tests the root object itself.
         let goessner = Arazzo.Criterion(
             context: expression("$response.body"), condition: "$[?(@.pets.length() > 0)]",
@@ -112,12 +119,15 @@ struct ConditionTests {
 
         // A body kept as JSON text is parsed before querying.
         let textual = Arazzo.EvaluationContext(response: .init(body: #"{"items": [1, 2]}"#))
-        #expect(Arazzo.Criterion(context: expression("$response.body"), condition: "$.items[1]", type: .jsonPath).isSatisfied(in: textual))
+        #expect(
+            Arazzo.Criterion(context: expression("$response.body"), condition: "$.items[1]", type: .jsonPath)
+                .isSatisfied(in: textual))
     }
 
     @Test func builtInSelectors() throws {
         func select(_ selector: String, _ type: Arazzo.SelectorType = .jsonPath) throws -> JSONValue? {
-            try Arazzo.Selector(context: expression("$response.body"), selector: selector, type: type).evaluate(in: Self.context)
+            try Arazzo.Selector(context: expression("$response.body"), selector: selector, type: type).evaluate(
+                in: Self.context)
         }
         #expect(try select("$.pets[0].id") == 1)
         #expect(try select("$.pets[*].id") == [1, 2])  // several nodes → an array
@@ -145,7 +155,8 @@ struct ConditionTests {
             }
         }
         let xpath = Arazzo.Criterion(
-            context: expression("$response.body"), condition: "/root/pets[name='{$inputs.expectedStatus}']", type: .xPath)
+            context: expression("$response.body"), condition: "/root/pets[name='{$inputs.expectedStatus}']",
+            type: .xPath)
         #expect(throws: Arazzo.EvaluationError.self) { try xpath.evaluate(in: Self.context) }
         #expect(try xpath.evaluate(in: Self.context, queryEvaluator: FakeXPath()))
         // JSONPath keeps using the built-in engine when the evaluator does not support it.
@@ -201,7 +212,9 @@ struct ConditionTests {
         let pointer = Arazzo.Selector(context: expression("$response.body"), selector: "/pets/1/id", type: .jsonPointer)
         #expect(try pointer.evaluate(in: Self.context) == 2)
 
-        let value = Arazzo.Value.literal(["auth": "Bearer {$steps.login.outputs.token}", "count": "{$response.body#/count}"])
+        let value = Arazzo.Value.literal([
+            "auth": "Bearer {$steps.login.outputs.token}", "count": "{$response.body#/count}",
+        ])
         #expect(try value.evaluate(in: Self.context) == ["auth": "Bearer abc", "count": 3])
         #expect(try Arazzo.Value("$statusCode").evaluate(in: Self.context) == 200)
     }

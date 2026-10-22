@@ -81,7 +81,8 @@ extension Arazzo.Document {
         do {
             value = try JSONValue(parsing: data)
         } catch {
-            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "\(error)", underlyingError: error))
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: [], debugDescription: "\(error)", underlyingError: error))
         }
         self = try JSONValueDecoder(userInfo: [Arazzo.DecodingOptions.key: options]).decode(Self.self, from: value)
     }

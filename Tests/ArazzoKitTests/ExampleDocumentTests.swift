@@ -5,7 +5,9 @@ import Testing
 
 @Suite("Official and spec example documents")
 struct ExampleDocumentTests {
-    @Test("Decodes in strict mode", arguments: Fixtures.official10 + ["async-order-1.1.arazzo.yaml", "pet-purchase-spec-example-1.1.arazzo.yaml"])
+    @Test(
+        "Decodes in strict mode",
+        arguments: Fixtures.official10 + ["async-order-1.1.arazzo.yaml", "pet-purchase-spec-example-1.1.arazzo.yaml"])
     func decodesStrictly(_ name: String) throws {
         // bnpl contains an invalid runtime expression, which strict mode rejects at decode time.
         if name == "bnpl-arazzo.yaml" {
@@ -31,14 +33,16 @@ struct ExampleDocumentTests {
         #expect(decoded == document)
     }
 
-    @Test("Valid examples produce no validation errors", arguments: [
-        "ExtendedParametersExample.arazzo.yaml",
-        "FAPI-PAR.arazzo.yaml",
-        "LoginAndRetrievePets.arazzo.yaml",
-        "oauth.arazzo.yaml",
-        "pet-coupons.arazzo.yaml",
-        "async-order-1.1.arazzo.yaml",
-    ])
+    @Test(
+        "Valid examples produce no validation errors",
+        arguments: [
+            "ExtendedParametersExample.arazzo.yaml",
+            "FAPI-PAR.arazzo.yaml",
+            "LoginAndRetrievePets.arazzo.yaml",
+            "oauth.arazzo.yaml",
+            "pet-coupons.arazzo.yaml",
+            "async-order-1.1.arazzo.yaml",
+        ])
     func validates(_ name: String) throws {
         let issues = try Fixtures.document(name).validate()
         #expect(issues.errors.isEmpty, "\(issues)")
@@ -53,7 +57,9 @@ struct ExampleDocumentTests {
         let issues = try Fixtures.document("bnpl-arazzo.yaml").validate()
         // `$steps.retrieveFinalizedPaymentPlan.finalizedPaymentPlan` is missing `.outputs.`. Arazzo 1.0's
         // grammar technically allows it (`$steps.` followed by anything), so it is a warning for this 1.0 document.
-        #expect(issues.contains(rule: "runtime-expressions", path: "/workflows/0/outputs/finalizedPaymentPlan", severity: .warning))
+        #expect(
+            issues.contains(
+                rule: "runtime-expressions", path: "/workflows/0/outputs/finalizedPaymentPlan", severity: .warning))
         // `initiateBnplTransaction` never declares a `loanTransactionId` output.
         #expect(issues.contains { $0.message.contains("declares no output 'loanTransactionId'") })
     }

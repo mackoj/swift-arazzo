@@ -4,7 +4,8 @@ import Foundation
 import Testing
 
 enum Fixtures {
-    static let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
+    static let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent(
+        "Fixtures")
 
     /// The Arazzo 1.0.0 examples published in the OAI/Arazzo-Specification repository.
     static let official10 = [
@@ -16,10 +17,11 @@ enum Fixtures {
         "pet-coupons.arazzo.yaml",
     ]
 
-    static let all = official10 + [
-        "pet-purchase-spec-example-1.1.arazzo.yaml",
-        "async-order-1.1.arazzo.yaml",
-    ]
+    static let all =
+        official10 + [
+            "pet-purchase-spec-example-1.1.arazzo.yaml",
+            "async-order-1.1.arazzo.yaml",
+        ]
 
     static func text(_ name: String) throws -> String {
         try String(contentsOf: directory.appendingPathComponent(name), encoding: .utf8)

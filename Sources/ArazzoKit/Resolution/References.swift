@@ -170,13 +170,15 @@ extension Arazzo.Step {
         for action in onSuccess {
             if let resolved = try? components.resolve(action) {
                 result += resolved.criteria.flatMap(\.runtimeExpressions)
-                result += resolved.parameters.compactMap { try? components.resolve($0) }.flatMap(\.value.runtimeExpressions)
+                result += resolved.parameters.compactMap { try? components.resolve($0) }.flatMap(
+                    \.value.runtimeExpressions)
             }
         }
         for action in onFailure {
             if let resolved = try? components.resolve(action) {
                 result += resolved.criteria.flatMap(\.runtimeExpressions)
-                result += resolved.parameters.compactMap { try? components.resolve($0) }.flatMap(\.value.runtimeExpressions)
+                result += resolved.parameters.compactMap { try? components.resolve($0) }.flatMap(
+                    \.value.runtimeExpressions)
             }
         }
         result += outputs.values.map(\.runtimeExpression)
@@ -208,7 +210,9 @@ extension Arazzo.Document {
 
     /// The success actions considered for a step: the step's `onSuccess` actions followed by the
     /// workflow-level `successActions` it does not override (by `name`).
-    public func effectiveSuccessActions(for step: Arazzo.Step, in workflow: Arazzo.Workflow) throws
+    public func effectiveSuccessActions(
+        for step: Arazzo.Step, in workflow: Arazzo.Workflow
+    ) throws
         -> [Arazzo.SuccessAction]
     {
         let own = try step.onSuccess.map(components.resolve)
@@ -218,7 +222,9 @@ extension Arazzo.Document {
 
     /// The failure actions considered for a step: the step's `onFailure` actions followed by the
     /// workflow-level `failureActions` it does not override (by `name`).
-    public func effectiveFailureActions(for step: Arazzo.Step, in workflow: Arazzo.Workflow) throws
+    public func effectiveFailureActions(
+        for step: Arazzo.Step, in workflow: Arazzo.Workflow
+    ) throws
         -> [Arazzo.FailureAction]
     {
         let own = try step.onFailure.map(components.resolve)
