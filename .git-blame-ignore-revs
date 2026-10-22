@@ -1,0 +1,5 @@
+# Whole-tree reformatting commits, skipped by `git blame` (GitHub does this automatically;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# Format the code with swift-format
+602b44ce0086f3403a5675ce80012af435a7809f

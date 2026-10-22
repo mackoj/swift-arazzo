@@ -321,4 +321,4 @@ adaptation is commented in the test file. Validation finds a few genuine mistake
 examples (an expression missing `.outputs.` in `bnpl-arazzo.yaml`, a misspelled source description
 in the 1.1.0 specification's root example); the tests assert they are reported.
 
-CI runs on macOS and on Linux (Swift 6.0, 6.1 and 6.2).
+CI runs on macOS and on Linux (Swift 6.0, 6.1 and 6.2). Pull requests also run the [swiftlang soundness checks](https://github.com/swiftlang/github-workflows) (swift-format, DocC, API breakage, YAML, shell, symlinks) and audit the workflows with actionlint and zizmor.
