@@ -92,7 +92,7 @@ extension Arazzo.Document {
         Data(try jsonValue().jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys).utf8)
     }
 
-    /// The description as a ``JSONValue`` tree.
+    /// The description as a `JSONValue` tree (from the `JSONPath` module).
     public func jsonValue() throws -> JSONValue {
         try JSONValueEncoder().encode(self)
     }
