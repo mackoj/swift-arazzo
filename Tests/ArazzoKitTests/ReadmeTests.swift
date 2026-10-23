@@ -47,6 +47,13 @@ struct ReadmeTests {
 
         let template = Arazzo.ExpressionTemplate("https://{$inputs.host}/pets/{$steps.login.outputs.token}")
         #expect(try template.render { try context.resolve($0) } == "https://api.example.com/pets/abc")
+        #expect(
+            template.locatedSegments.map { template.rawValue[$0.range] } == [
+                "https://", "{$inputs.host}", "/pets/", "{$steps.login.outputs.token}",
+            ])
+
+        let error = try #require(Arazzo.RuntimeExpression(lenient: "$steps.login.token").parseError)
+        #expect(error.expression[error.range] == ".token")
     }
 
     @Test func jsonPathOnItsOwn() throws {
