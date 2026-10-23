@@ -174,7 +174,9 @@ private func decodeTarget(
     }
 }
 
-private func encodeTarget(_ target: Arazzo.ActionTarget?, into container: inout KeyedEncodingContainer<ActionCodingKeys>)
+private func encodeTarget(
+    _ target: Arazzo.ActionTarget?, into container: inout KeyedEncodingContainer<ActionCodingKeys>
+)
     throws
 {
     switch target {

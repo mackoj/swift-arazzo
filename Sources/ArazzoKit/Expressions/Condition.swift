@@ -265,7 +265,9 @@ private struct ConditionParser {
         func fail(_ message: String) -> Arazzo.Condition.ParseError {
             .init(condition: source, message: message)
         }
-        let expressionTerminators: Set<Character> = ["(", ")", "<", ">", "=", "!", "&", "|", "[", "]", " ", "\t", "\n", "\r"]
+        let expressionTerminators: Set<Character> = [
+            "(", ")", "<", ">", "=", "!", "&", "|", "[", "]", " ", "\t", "\n", "\r",
+        ]
         while i < characters.count {
             let c = characters[i]
             if c.isWhitespace {
@@ -326,7 +328,8 @@ private struct ConditionParser {
                 var isInteger = true
                 while j < characters.count,
                     characters[j].isASCIIDigit || characters[j] == "." || characters[j] == "e" || characters[j] == "E"
-                        || ((characters[j] == "+" || characters[j] == "-") && (characters[j - 1] == "e" || characters[j - 1] == "E"))
+                        || ((characters[j] == "+" || characters[j] == "-")
+                            && (characters[j - 1] == "e" || characters[j - 1] == "E"))
                 {
                     if !characters[j].isASCIIDigit { isInteger = false }
                     j += 1
@@ -354,8 +357,9 @@ private struct ConditionParser {
             default:
                 if c.isLetter || c == "_" {
                     var j = i
-                    while j < characters.count, characters[j].isLetter || characters[j].isNumber || characters[j] == "_"
-                        || characters[j] == "-"
+                    while j < characters.count,
+                        characters[j].isLetter || characters[j].isNumber || characters[j] == "_"
+                            || characters[j] == "-"
                     {
                         j += 1
                     }
@@ -461,7 +465,9 @@ private struct ConditionParser {
                     guard advance() == .rightBracket else { throw fail("missing ']'") }
                 } else if current == .dot, accessors.isEmpty == false {
                     position += 1
-                    guard case .identifier(let name)? = advance() else { throw fail("expected a property name after '.'") }
+                    guard case .identifier(let name)? = advance() else {
+                        throw fail("expected a property name after '.'")
+                    }
                     accessors.append(.property(name))
                 } else {
                     break

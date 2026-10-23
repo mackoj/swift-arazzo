@@ -87,7 +87,8 @@ extension Arazzo.RequestBody: Codable {
         contentType = try container.decodeIfPresent(String.self, forKey: .contentType)
         // Distinguish an explicit `payload: null` from an absent payload.
         if container.contains(.payload) {
-            payload = try container.decodeNil(forKey: .payload)
+            payload =
+                try container.decodeNil(forKey: .payload)
                 ? .null : try container.decode(JSONValue.self, forKey: .payload)
         } else {
             payload = nil

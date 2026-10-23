@@ -81,7 +81,8 @@ extension Arazzo.Document {
         do {
             value = try JSONValue(parsing: data)
         } catch {
-            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "\(error)", underlyingError: error))
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: [], debugDescription: "\(error)", underlyingError: error))
         }
         self = try JSONValueDecoder(userInfo: [Arazzo.DecodingOptions.key: options]).decode(Self.self, from: value)
     }
@@ -91,7 +92,7 @@ extension Arazzo.Document {
         Data(try jsonValue().jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys).utf8)
     }
 
-    /// The description as a ``JSONValue`` tree.
+    /// The description as a `JSONValue` tree (from the `JSONPath` module).
     public func jsonValue() throws -> JSONValue {
         try JSONValueEncoder().encode(self)
     }

@@ -20,7 +20,8 @@ extension Arazzo {
         public var value: Value
         public var vendorExtensions: VendorExtensions
 
-        public init(name: String, in location: Location? = nil, value: Value, vendorExtensions: VendorExtensions = [:]) {
+        public init(name: String, in location: Location? = nil, value: Value, vendorExtensions: VendorExtensions = [:])
+        {
             self.name = name
             self.location = location
             self.value = value

@@ -1,0 +1,8 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Setting policies replaces zizmor's defaults, so keep the default for GitHub's own actions.
+        "actions/*": ref-pin
+        # The soundness workflow is pinned to a release tag; it checks out its own scripts from main regardless.
+        "swiftlang/*": ref-pin

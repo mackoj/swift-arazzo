@@ -24,7 +24,8 @@ struct RegressionTests {
 
     @Test func emptyReplacementTargetIsTheWholePayload() throws {
         let body = Arazzo.RequestBody(
-            contentType: "application/json", payload: ["a": 1], replacements: [.init(target: "", value: .literal(["b": 2]))])
+            contentType: "application/json", payload: ["a": 1],
+            replacements: [.init(target: "", value: .literal(["b": 2]))])
         let document = makeDocument(workflows: [
             .init(workflowId: "w", steps: [.init(stepId: "s", target: .operationId("op"), requestBody: body)])
         ])
@@ -43,12 +44,17 @@ struct RegressionTests {
                 ])
         ])
         let issues = document.validate()
-        #expect(issues.contains(rule: "criteria", path: "/workflows/0/steps/0/successCriteria/0/context", severity: .warning))
+        #expect(
+            issues.contains(
+                rule: "criteria", path: "/workflows/0/steps/0/successCriteria/0/context", severity: .warning))
         #expect(issues.errors.isEmpty)
     }
 
     @Test func jsonDecodingAndEncodingPreserveMapOrder() throws {
-        let keys = ["zeta", "alpha", "mike", "bravo", "yankee", "charlie", "xray", "delta", "whiskey", "echo", "victor", "foxtrot"]
+        let keys = [
+            "zeta", "alpha", "mike", "bravo", "yankee", "charlie", "xray", "delta", "whiskey", "echo", "victor",
+            "foxtrot",
+        ]
         let outputs = keys.map { "\"\($0)\": \"$response.body#/\($0)\"" }.joined(separator: ", ")
         let json = """
             {"arazzo": "1.1.0", "info": {"title": "t", "version": "1"},
@@ -68,7 +74,8 @@ struct RegressionTests {
     }
 
     @Test func strictModeStillAppliesToJSON() {
-        let json = #"{"arazzo": "1.1.0", "info": {"title": "t", "version": "1", "bogus": 1}, "sourceDescriptions": [], "workflows": []}"#
+        let json =
+            #"{"arazzo": "1.1.0", "info": {"title": "t", "version": "1", "bogus": 1}, "sourceDescriptions": [], "workflows": []}"#
         #expect(throws: DecodingError.self) { try Arazzo.Document(json: Data(json.utf8), options: .init(strict: true)) }
         #expect(throws: DecodingError.self) { try Arazzo.Document(json: Data("{not json".utf8)) }
     }
@@ -91,8 +98,11 @@ struct RegressionTests {
                       weird: $components.inputs.pagination
             """
         let issues = try decodeYAML(Arazzo.Document.self, yaml).validate()
-        #expect(issues.contains(rule: "runtime-expressions", path: "/workflows/0/steps/0/outputs/weird", severity: .warning))
-        #expect(issues.contains(rule: "criteria", path: "/workflows/0/steps/0/successCriteria/0/type", severity: .warning))
+        #expect(
+            issues.contains(rule: "runtime-expressions", path: "/workflows/0/steps/0/outputs/weird", severity: .warning)
+        )
+        #expect(
+            issues.contains(rule: "criteria", path: "/workflows/0/steps/0/successCriteria/0/type", severity: .warning))
         #expect(issues.errors.isEmpty, "\(issues.errors)")
     }
 }
