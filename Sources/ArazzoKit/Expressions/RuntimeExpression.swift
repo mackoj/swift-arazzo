@@ -69,7 +69,29 @@ extension Arazzo {
         public struct ParseError: Error, Hashable, Sendable, CustomStringConvertible {
             public let expression: String
             public let message: String
+            /// The part of ``expression`` the error refers to: the offending text, or the unparsed
+            /// rest of the expression from where parsing stopped. It is empty at the end of
+            /// ``expression`` when text is missing there.
+            ///
+            /// Two errors compare equal when their ``expression`` and ``message`` do, whatever their range.
+            public let range: Range<String.Index>
+
+            init(expression: String, message: String, range: Range<String.Index>? = nil) {
+                self.expression = expression
+                self.message = message
+                self.range = range ?? expression.startIndex..<expression.endIndex
+            }
+
             public var description: String { "Invalid runtime expression '\(expression)': \(message)" }
+
+            public static func == (lhs: Self, rhs: Self) -> Bool {
+                lhs.expression == rhs.expression && lhs.message == rhs.message
+            }
+
+            public func hash(into hasher: inout Hasher) {
+                hasher.combine(expression)
+                hasher.combine(message)
+            }
         }
 
         /// Parses a runtime expression. The whole string must be a single expression.
@@ -269,8 +291,9 @@ extension Arazzo.RuntimeExpression {
             rest = Substring(string)
         }
 
-        func fail(_ message: String) -> ParseError {
-            ParseError(expression: original, message: message)
+        /// An error about `range`, by default the unparsed rest of the expression.
+        func fail(_ message: String, at range: Range<String.Index>? = nil) -> ParseError {
+            ParseError(expression: original, message: message, range: range ?? rest.startIndex..<original.endIndex)
         }
 
         mutating func consume(_ prefix: String) -> Bool {
@@ -281,8 +304,8 @@ extension Arazzo.RuntimeExpression {
 
         mutating func parse() throws -> (Kind, Bool) {
             guard rest.first == "$" else { throw fail("expressions must start with '$'") }
-            guard !rest.contains("{") && !rest.contains("}") else {
-                throw fail("'{' and '}' are not allowed inside an expression")
+            if let brace = rest.firstIndex(where: { $0 == "{" || $0 == "}" }) {
+                throw fail("'{' and '}' are not allowed inside an expression", at: brace..<rest.index(after: brace))
             }
             let kind: Kind
             if consume("$url") {
@@ -328,7 +351,7 @@ extension Arazzo.RuntimeExpression {
                     throw fail("expected '.<reference>' after the source description name")
                 }
                 kind = .sourceDescriptions(name: name, reference: String(rest))
-                rest = ""
+                rest = rest[rest.endIndex...]
             } else if consume("$components.") {
                 guard let typeEnd = rest.firstIndex(of: "."),
                     let type = ComponentType(rawValue: String(rest[..<typeEnd]))
@@ -340,7 +363,7 @@ extension Arazzo.RuntimeExpression {
                 guard ExpressionGrammar.isIdentifier(name) else {
                     throw fail("component name must match [a-zA-Z0-9.\\-_]+")
                 }
-                rest = ""
+                rest = rest[rest.endIndex...]
                 kind = .components(type: type, name: name)
             } else {
                 throw fail("unknown expression prefix")
@@ -365,13 +388,14 @@ extension Arazzo.RuntimeExpression {
 
         mutating func parseOptionalPointer() throws -> JSONPointer? {
             guard consume("#") else { return nil }
+            let pointerRange = rest.startIndex..<rest.endIndex
             let text = String(rest)
-            rest = ""
-            guard !text.hasPrefix("#") else { throw fail("a JSON Pointer cannot start with '#'") }
+            rest = rest[rest.endIndex...]
+            guard !text.hasPrefix("#") else { throw fail("a JSON Pointer cannot start with '#'", at: pointerRange) }
             do {
                 return try JSONPointer(text)
             } catch {
-                throw fail("\(error)")
+                throw fail("\(error)", at: pointerRange)
             }
         }
 
@@ -381,15 +405,15 @@ extension Arazzo.RuntimeExpression {
                 guard !token.isEmpty, token.allSatisfy(ExpressionGrammar.isTokenCharacter) else {
                     throw fail("header names must be RFC 9110 tokens")
                 }
-                rest = ""
+                rest = rest[rest.endIndex...]
                 return .header(token)
             }
             if consume("query.") {
-                defer { rest = "" }
+                defer { rest = rest[rest.endIndex...] }
                 return .query(String(rest))
             }
             if consume("path.") {
-                defer { rest = "" }
+                defer { rest = rest[rest.endIndex...] }
                 return .path(String(rest))
             }
             if consume("body") {
@@ -417,18 +441,25 @@ extension Arazzo.RuntimeExpression {
                     tokens.append(String(segment))
                     rest = rest.dropFirst(segment.count)
                 } else if consume("[") {
-                    guard let close = rest.firstIndex(of: "]") else { throw fail("unterminated '['") }
+                    let openBracket = original.index(before: rest.startIndex)
+                    guard let close = rest.firstIndex(of: "]") else {
+                        throw fail("unterminated '['", at: openBracket..<rest.endIndex)
+                    }
+                    let bracket = openBracket..<rest.index(after: close)
                     var index = String(rest[..<close])
                     if let q = index.first, q == "'" || q == "\"" {
-                        guard index.count >= 2, index.last == q else { throw fail("unbalanced quote in '[\(index)]'") }
+                        guard index.count >= 2, index.last == q else {
+                            throw fail("unbalanced quote in '[\(index)]'", at: bracket)
+                        }
                         index = String(index.dropFirst().dropLast())
                     } else if let last = index.last, last == "'" || last == "\"" {
-                        throw fail("unbalanced quote in '[\(index)]'")
+                        throw fail("unbalanced quote in '[\(index)]'", at: bracket)
                     }
                     tokens.append(index)
                     rest = rest[rest.index(after: close)...]
                 } else {
-                    throw fail("unexpected character '\(rest.first!)' in path")
+                    let character = rest.startIndex..<rest.index(after: rest.startIndex)
+                    throw fail("unexpected character '\(rest.first!)' in path", at: character)
                 }
             }
             return JSONPointer(tokens: tokens)

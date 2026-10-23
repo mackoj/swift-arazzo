@@ -208,6 +208,17 @@ template.expressions        // [$inputs.host, $steps.create.outputs.id]
 try template.render { try context.resolve($0) }
 ```
 
+Editors can highlight and diagnose expressions in place: `locatedSegments` pairs each segment with its
+range in `rawValue`, and a `ParseError` carries the `range` of the offending text in its `expression`.
+
+```swift
+template.locatedSegments.map { template.rawValue[$0.range] }
+// ["https://", "{$inputs.host}", "/pets/", "{$steps.create.outputs.id}"]
+
+let error = Arazzo.RuntimeExpression(lenient: "$steps.login.token").parseError!
+error.expression[error.range]   // ".token"
+```
+
 The parser follows the specification's ABNF. As a convenience (and because the specification's own
 examples use it) dotted paths after `body`/`payload` are accepted —
 `$response.body.data.id` ≡ `$response.body#/data/id` — and flagged by validation.

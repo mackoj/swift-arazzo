@@ -11,21 +11,46 @@ extension Arazzo {
             case expression(RuntimeExpression)
         }
 
+        /// A ``Segment`` together with the part of ``ExpressionTemplate/rawValue`` it was read from.
+        ///
+        /// An expression segment's range covers its braces: in `id={$inputs.id}` it is `{$inputs.id}`.
+        /// A literal segment's range also covers any invalid `{$...}` sequence merged into it.
+        public struct LocatedSegment: Hashable, Sendable {
+            public let segment: Segment
+            /// The segment's text in ``ExpressionTemplate/rawValue``.
+            public let range: Range<String.Index>
+        }
+
         /// A `{$...}` sequence that looked like an embedded expression but failed to parse.
         public struct InvalidExpression: Hashable, Sendable {
             public let text: String
+            /// The parse error. Its ``RuntimeExpression/ParseError/range`` indexes ``text``;
+            /// ``errorRange`` is the same range in the template.
             public let error: RuntimeExpression.ParseError
+            /// The sequence in ``ExpressionTemplate/rawValue``, braces included.
+            public let range: Range<String.Index>
+            /// The text the parse error refers to, in ``ExpressionTemplate/rawValue``.
+            public let errorRange: Range<String.Index>
         }
 
         public let rawValue: String
         public let segments: [Segment]
+        /// ``segments`` with their ranges in ``rawValue``, in the same order.
+        ///
+        /// The ranges are contiguous and cover all of ``rawValue``.
+        public let locatedSegments: [LocatedSegment]
         public let invalidExpressions: [InvalidExpression]
 
         public init(_ string: String) {
+            // Native UTF-8 storage, so that equal strings give equal ranges.
+            var native = string
+            native.makeContiguousUTF8()
+            let string = native
             rawValue = string
-            var segments: [Segment] = []
+            var located: [LocatedSegment] = []
             var invalid: [InvalidExpression] = []
             var literal = ""
+            var literalStart = string.startIndex
             var index = string.startIndex
             while index < string.endIndex {
                 let character = string[index]
@@ -34,27 +59,38 @@ extension Arazzo {
                     let close = string[next...].firstIndex(of: "}")
                 {
                     let text = String(string[next..<close])
+                    let end = string.index(after: close)
                     do {
                         let expression = try RuntimeExpression(text)
                         if !literal.isEmpty {
-                            segments.append(.literal(literal))
+                            located.append(LocatedSegment(segment: .literal(literal), range: literalStart..<index))
                             literal = ""
                         }
-                        segments.append(.expression(expression))
+                        located.append(LocatedSegment(segment: .expression(expression), range: index..<end))
+                        literalStart = end
                     } catch let error as RuntimeExpression.ParseError {
-                        invalid.append(InvalidExpression(text: text, error: error))
+                        // `text` is a copy of `string[next..<close]`, so UTF-8 offsets carry over.
+                        func templateIndex(_ i: String.Index) -> String.Index {
+                            string.utf8.index(next, offsetBy: text.utf8.distance(from: text.startIndex, to: i))
+                        }
+                        let errorRange = templateIndex(error.range.lowerBound)..<templateIndex(error.range.upperBound)
+                        invalid.append(
+                            InvalidExpression(text: text, error: error, range: index..<end, errorRange: errorRange))
                         literal += string[index...close]
                     } catch {
                         literal += string[index...close]
                     }
-                    index = string.index(after: close)
+                    index = end
                 } else {
                     literal.append(character)
                     index = next
                 }
             }
-            if !literal.isEmpty { segments.append(.literal(literal)) }
-            self.segments = segments
+            if !literal.isEmpty {
+                located.append(LocatedSegment(segment: .literal(literal), range: literalStart..<string.endIndex))
+            }
+            locatedSegments = located
+            segments = located.map(\.segment)
             invalidExpressions = invalid
         }
 
