@@ -1,6 +1,8 @@
 # swift-arazzo
 
 [![CI](https://github.com/mackoj/swift-arazzo/actions/workflows/ci.yml/badge.svg)](https://github.com/mackoj/swift-arazzo/actions/workflows/ci.yml)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fmackoj%2Fswift-arazzo%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/mackoj/swift-arazzo)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fmackoj%2Fswift-arazzo%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/mackoj/swift-arazzo)
 
 A Swift library for reading, writing, building and validating
 [Arazzo](https://www.openapis.org/arazzo-specification) descriptions — the OpenAPI Initiative's
