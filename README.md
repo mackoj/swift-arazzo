@@ -246,6 +246,8 @@ evaluated with Swift `Regex`.
 engine. The Expression Type version picks the dialect: `rfc9535` (the default) is strict RFC 9535;
 `draft-goessner-dispatch-jsonpath-00` uses the Goessner-derived Jayway dialect (`[?(...)]`, `in`,
 `=~`, `.length()`, ...). A selector matching several nodes yields an array of their values.
+Embedded `{$...}` expressions in a `jsonpath` or `xpath` condition or selector are substituted
+before it is compiled; a string is inserted as its text, so quote it (`'{$inputs.lang}'`).
 
 ```swift
 let criterion = Arazzo.Criterion(context: try .init("$response.body"),

@@ -207,6 +207,10 @@ extension Array where Element == Arazzo.Criterion {
 extension Arazzo.Selector {
     /// Applies the selector to its context. JSONPath and JSON Pointer are built in; XPath needs a
     /// ``Arazzo/QueryEvaluator``. A JSONPath selecting several nodes yields an array of their values.
+    ///
+    /// Embedded `{$...}` expressions in a JSONPath or XPath selector are substituted before it is
+    /// compiled, as in a criterion's condition: a string is inserted as its text, so quote it
+    /// (`$[?@.lang == '{$inputs.lang}'].id`). A JSON Pointer is used as written.
     public func evaluate(
         in resolver: some Arazzo.RuntimeExpressionResolver,
         queryEvaluator: (any Arazzo.QueryEvaluator)? = nil
@@ -221,10 +225,11 @@ extension Arazzo.Selector {
             }
         case let kind:
             let version = type.effectiveVersion
+            let rendered = try Arazzo.ExpressionTemplate(selector).render { try resolver.resolve($0) }
             if let queryEvaluator, queryEvaluator.supports(kind, version: version) {
-                return try queryEvaluator.select(selector, kind: kind, version: version, context: contextValue)
+                return try queryEvaluator.select(rendered, kind: kind, version: version, context: contextValue)
             }
-            return try Arazzo.BuiltInQueries.select(selector, kind: kind, version: version, context: contextValue)
+            return try Arazzo.BuiltInQueries.select(rendered, kind: kind, version: version, context: contextValue)
         }
     }
 }
