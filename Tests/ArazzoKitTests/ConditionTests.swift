@@ -136,6 +136,36 @@ struct ConditionTests {
         #expect(throws: Arazzo.EvaluationError.unsupportedQueryLanguage(.xPath)) { try select("/a", .xPath) }
     }
 
+    @Test func selectorsSubstituteEmbeddedExpressions() throws {
+        var context = Arazzo.EvaluationContext()
+        context.response = .init(body: [
+            ["country": "FR", "lang": "fr", "env_id": "fr-fr"],
+            ["country": "BE", "lang": "fr", "env_id": "be-fr"],
+            ["country": "BE", "lang": "nl", "env_id": "be-nl"],
+        ])
+        context.inputs = ["country": "BE", "lang": "fr", "index": 2]
+        func select(_ selector: String, _ type: Arazzo.SelectorType = .jsonPath) throws -> JSONValue? {
+            try Arazzo.Selector(context: expression("$response.body"), selector: selector, type: type)
+                .evaluate(in: context)
+        }
+        #expect(try select("$[?@.lang == '{$inputs.lang}' && @.country == '{$inputs.country}'].env_id") == "be-fr")
+        #expect(try select("$[{$inputs.index}].env_id") == "be-nl")
+        let jayway = Arazzo.SelectorType.expressionType(
+            .init(kind: .jsonPath, version: .draftGoessnerDispatchJSONPath00))
+        #expect(
+            try select("$.[?(@.lang == '{$inputs.lang}' && @.country == '{$inputs.country}')].env_id", jayway)
+                == "be-fr")
+        // A JSON Pointer is used as written.
+        #expect(try select("/{$inputs.index}/env_id", .jsonPointer) == nil)
+
+        let output = Arazzo.OutputValue.selector(
+            .init(
+                context: expression("$response.body"), selector: "$[?@.lang == '{$inputs.lang}'].env_id",
+                type: .jsonPath))
+        #expect(try output.evaluate(in: context) == ["fr-fr", "be-fr"])
+        #expect(output.runtimeExpressions.map(\.rawValue) == ["$response.body", "$inputs.lang"])
+    }
+
     @Test func customQueryEvaluators() throws {
         struct FakeXPath: Arazzo.QueryEvaluator {
             func supports(_ kind: Arazzo.ExpressionType.Kind, version: Arazzo.ExpressionType.Version) -> Bool {

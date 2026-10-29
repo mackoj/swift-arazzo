@@ -12,6 +12,14 @@ extension Arazzo {
             case .selector(let s): s.context
             }
         }
+
+        /// Every runtime expression the output depends on: a selector's context and its embedded expressions.
+        public var runtimeExpressions: [RuntimeExpression] {
+            switch self {
+            case .expression(let e): [e]
+            case .selector(let s): s.runtimeExpressions
+            }
+        }
     }
 
     /// A workflow: a sequence of steps achieving a goal (the "Workflow Object").

@@ -26,6 +26,12 @@ extension Arazzo {
             self.vendorExtensions = vendorExtensions
         }
 
+        /// The context, then the expressions embedded in a JSONPath or XPath selector.
+        public var runtimeExpressions: [RuntimeExpression] {
+            guard type.kind != .jsonPointer else { return [context] }
+            return [context] + ExpressionTemplate(selector).expressions
+        }
+
         /// Interprets a JSON object as a Selector Object, if it has that shape.
         public init?(json: JSONValue) {
             guard case .object(let object) = json,
@@ -127,7 +133,7 @@ extension Arazzo {
         public var runtimeExpressions: [RuntimeExpression] {
             switch self {
             case .expression(let e): [e]
-            case .selector(let s): [s.context]
+            case .selector(let s): s.runtimeExpressions
             case .literal(let json): JSONValue.runtimeExpressions(in: json)
             }
         }
@@ -157,7 +163,7 @@ extension Arazzo.Value: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral,
 
 extension JSONValue {
     /// Finds runtime expressions anywhere inside a JSON value: strings that are expressions,
-    /// expressions embedded in strings with `{$...}`, and Selector Object contexts.
+    /// expressions embedded in strings with `{$...}`, and those of Selector Objects.
     static func runtimeExpressions(in value: JSONValue) -> [Arazzo.RuntimeExpression] {
         switch value {
         case .string(let string):
@@ -168,7 +174,7 @@ extension JSONValue {
         case .array(let values):
             return values.flatMap(runtimeExpressions(in:))
         case .object(let object):
-            if let selector = Arazzo.Selector(json: value) { return [selector.context] }
+            if let selector = Arazzo.Selector(json: value) { return selector.runtimeExpressions }
             return object.values.flatMap(runtimeExpressions(in:))
         default:
             return []
