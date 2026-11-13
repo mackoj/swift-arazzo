@@ -25,8 +25,7 @@ enum Detect {
 
     /// `import Foundation` anywhere but the `#else` of `#if canImport(FoundationEssentials)`.
     static func unguardedFoundationImports(in scope: Scope) -> [Match<ImportDeclSyntax>] {
-        scope.containing("import Foundation").nodes(of: ImportDeclSyntax.self) { match in
-            guard match.node.moduleName == "Foundation" else { return false }
+        scope.imports(of: "Foundation").filter { match in
             guard let clause = match.node.enclosingIfConfigClauses.first else { return true }
             return !(clause.isElse && clause.ifCondition == "canImport(FoundationEssentials)")
         }
@@ -37,10 +36,9 @@ enum Detect {
 
     /// Imports in `ArazzoKit` outside its budget, and `import Yams` in `ArazzoKitYAML` outside `#if YAML`.
     static func importsOverBudget(arazzoKit: Scope, arazzoKitYAML: Scope) -> [Match<ImportDeclSyntax>] {
-        let kit = arazzoKit.nodes(of: ImportDeclSyntax.self) { !arazzoKitModules.contains($0.node.moduleName) }
-        let yams = arazzoKitYAML.containing("Yams").nodes(of: ImportDeclSyntax.self) { match in
-            guard match.node.moduleName == "Yams" else { return false }
-            return !match.node.enclosingIfConfigClauses.contains {
+        let kit = arazzoKit.imports.filter { !arazzoKitModules.contains($0.node.moduleName) }
+        let yams = arazzoKitYAML.imports(of: "Yams").filter { match in
+            !match.node.enclosingIfConfigClauses.contains {
                 !$0.isElse && $0.condition?.trimmedDescription == "YAML"
             }
         }
@@ -65,7 +63,7 @@ enum Detect {
 
     /// `import XCTest`.
     static func xcTestImports(in scope: Scope) -> [Match<ImportDeclSyntax>] {
-        scope.containing("XCTest").nodes(of: ImportDeclSyntax.self) { $0.node.moduleName == "XCTest" }
+        scope.imports(of: "XCTest")
     }
 
     /// `withKnownIssue { … }` whose first argument is not a string literal: the reason.
