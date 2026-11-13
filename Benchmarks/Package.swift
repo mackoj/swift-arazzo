@@ -23,6 +23,10 @@ let package = Package(
             plugins: [
                 .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
             ]
-        )
+        ),
+        // Reads two `benchmark --format markdown` outputs and prints each benchmark's p50 before and after.
+        .executableTarget(name: "p50", path: "Tools/P50"),
+        // Reads an exported Time Profiler table and prints the hottest functions (scripts/profile.sh).
+        .executableTarget(name: "hotspots", path: "Tools/Hotspots"),
     ]
 )
