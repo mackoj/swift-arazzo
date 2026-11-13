@@ -79,14 +79,16 @@ struct ConditionTests {
         let accessor = try Arazzo.Condition("$response.body['pets'].naïve == 1")
 
         // Then they parse as their ASCII equivalents would
-        #expect(
-            spaced == .binary(.literal(.integer(200)), .equal, .expression(try .init("$statusCode"), accessors: [])))
-        #expect(literal == .binary(.expression(try .init("$inputs.name"), accessors: []), .equal, .literal("café ☕️")))
+        let statusCode = try Arazzo.RuntimeExpression("$statusCode")
+        let name = try Arazzo.RuntimeExpression("$inputs.name")
+        let body = try Arazzo.RuntimeExpression("$response.body")
+        #expect(spaced == .binary(.literal(.integer(200)), .equal, .expression(statusCode, accessors: [])))
+        #expect(literal == .binary(.expression(name, accessors: []), .equal, .literal("café ☕️")))
         #expect(
             accessor
                 == .binary(
-                    .expression(try .init("$response.body"), accessors: [.property("pets"), .property("naïve")]),
-                    .equal, .literal(.integer(1))))
+                    .expression(body, accessors: [.property("pets"), .property("naïve")]), .equal,
+                    .literal(.integer(1))))
     }
 
     @Test func collectsRuntimeExpressions() throws {
