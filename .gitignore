@@ -1,6 +1,8 @@
 .DS_Store
 /.build
 /.swiftpm
+/Architecture/.build
+/Architecture/.swiftpm
 /Packages
 xcuserdata/
 DerivedData/
