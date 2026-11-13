@@ -1119,7 +1119,7 @@ enum BuiltInRules {
             let source = text.dropFirst(prefix.count)
             if source.hasPrefix("header.") {
                 let token = source.dropFirst("header.".count)
-                return !token.isEmpty && token.allSatisfy(ExpressionGrammar.isTokenCharacter)
+                return ExpressionGrammar.isToken(token)
             }
             if source.hasPrefix("query.") || source.hasPrefix("path.") { return true }
             if source == "body" { return true }

@@ -253,28 +253,48 @@ extension Arazzo.RuntimeExpression: Codable {
 
 // MARK: - Character classes
 
+/// The ABNF's character classes, on UTF-8 bytes. Every class is ASCII, so a string matches exactly when each of its
+/// bytes does, which avoids grapheme breaking and Unicode property lookups.
 enum ExpressionGrammar {
     /// `identifier-strict = 1*( ALPHA / DIGIT / "-" / "_" )`
-    static func isStrictIdentifierCharacter(_ c: Character) -> Bool {
-        c.isASCIILetter || c.isASCIIDigit || c == "-" || c == "_"
+    static func isStrictIdentifierByte(_ b: UInt8) -> Bool {
+        switch b {
+        case UInt8(ascii: "a")...UInt8(ascii: "z"), UInt8(ascii: "A")...UInt8(ascii: "Z"),
+            UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "-"), UInt8(ascii: "_"):
+            true
+        default: false
+        }
     }
 
     /// `identifier = 1*( ALPHA / DIGIT / "." / "-" / "_" )`
-    static func isIdentifierCharacter(_ c: Character) -> Bool {
-        isStrictIdentifierCharacter(c) || c == "."
+    static func isIdentifierByte(_ b: UInt8) -> Bool {
+        isStrictIdentifierByte(b) || b == UInt8(ascii: ".")
     }
 
     /// RFC 9110 `tchar`.
-    static func isTokenCharacter(_ c: Character) -> Bool {
-        c.isASCIILetter || c.isASCIIDigit || "!#$%&'*+-.^_`|~".contains(c)
+    static func isTokenByte(_ b: UInt8) -> Bool {
+        switch b {
+        case UInt8(ascii: "a")...UInt8(ascii: "z"), UInt8(ascii: "A")...UInt8(ascii: "Z"),
+            UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "!"), UInt8(ascii: "#"), UInt8(ascii: "$"),
+            UInt8(ascii: "%"), UInt8(ascii: "&"), UInt8(ascii: "'"), UInt8(ascii: "*"), UInt8(ascii: "+"),
+            UInt8(ascii: "-"), UInt8(ascii: "."), UInt8(ascii: "^"), UInt8(ascii: "_"), UInt8(ascii: "`"),
+            UInt8(ascii: "|"), UInt8(ascii: "~"):
+            true
+        default: false
+        }
     }
 
     static func isStrictIdentifier(_ s: some StringProtocol) -> Bool {
-        !s.isEmpty && s.allSatisfy(isStrictIdentifierCharacter)
+        !s.isEmpty && s.utf8.allSatisfy(isStrictIdentifierByte)
     }
 
     static func isIdentifier(_ s: some StringProtocol) -> Bool {
-        !s.isEmpty && s.allSatisfy(isIdentifierCharacter)
+        !s.isEmpty && s.utf8.allSatisfy(isIdentifierByte)
+    }
+
+    /// RFC 9110 `token = 1*tchar`.
+    static func isToken(_ s: some StringProtocol) -> Bool {
+        !s.isEmpty && s.utf8.allSatisfy(isTokenByte)
     }
 }
 
@@ -296,16 +316,25 @@ extension Arazzo.RuntimeExpression {
             ParseError(expression: original, message: message, range: range ?? rest.startIndex..<original.endIndex)
         }
 
+        /// Consumes `prefix` (ASCII) if the rest starts with it. Compares UTF-8 bytes, not `Character`s.
         mutating func consume(_ prefix: String) -> Bool {
-            guard rest.hasPrefix(prefix) else { return false }
-            rest = rest.dropFirst(prefix.count)
+            guard rest.utf8.starts(with: prefix.utf8) else { return false }
+            rest = rest[rest.utf8.index(rest.startIndex, offsetBy: prefix.utf8.count)...]
             return true
         }
 
+        /// Consumes and returns the longest prefix whose bytes satisfy `predicate`.
+        mutating func take(while predicate: (UInt8) -> Bool) -> Substring {
+            let end = rest.utf8.firstIndex { !predicate($0) } ?? rest.endIndex
+            defer { rest = rest[end...] }
+            return rest[..<end]
+        }
+
         mutating func parse() throws -> (Kind, Bool) {
-            guard rest.first == "$" else { throw fail("expressions must start with '$'") }
-            if let brace = rest.firstIndex(where: { $0 == "{" || $0 == "}" }) {
-                throw fail("'{' and '}' are not allowed inside an expression", at: brace..<rest.index(after: brace))
+            guard rest.utf8.first == UInt8(ascii: "$") else { throw fail("expressions must start with '$'") }
+            if let brace = rest.utf8.firstIndex(where: { $0 == UInt8(ascii: "{") || $0 == UInt8(ascii: "}") }) {
+                throw fail(
+                    "'{' and '}' are not allowed inside an expression", at: brace..<rest.utf8.index(after: brace))
             }
             let kind: Kind
             if consume("$url") {
@@ -353,12 +382,12 @@ extension Arazzo.RuntimeExpression {
                 kind = .sourceDescriptions(name: name, reference: String(rest))
                 rest = rest[rest.endIndex...]
             } else if consume("$components.") {
-                guard let typeEnd = rest.firstIndex(of: "."),
+                guard let typeEnd = rest.utf8.firstIndex(of: UInt8(ascii: ".")),
                     let type = ComponentType(rawValue: String(rest[..<typeEnd]))
                 else {
                     throw fail("expected 'parameters', 'successActions' or 'failureActions' after '$components.'")
                 }
-                rest = rest[rest.index(after: typeEnd)...]
+                rest = rest[rest.utf8.index(after: typeEnd)...]
                 let name = String(rest)
                 guard ExpressionGrammar.isIdentifier(name) else {
                     throw fail("component name must match [a-zA-Z0-9.\\-_]+")
@@ -373,16 +402,14 @@ extension Arazzo.RuntimeExpression {
         }
 
         mutating func parseStrictIdentifier(what: String) throws -> String {
-            let identifier = rest.prefix(while: ExpressionGrammar.isStrictIdentifierCharacter)
+            let identifier = take(while: ExpressionGrammar.isStrictIdentifierByte)
             guard !identifier.isEmpty else { throw fail("expected a \(what)") }
-            rest = rest.dropFirst(identifier.count)
             return String(identifier)
         }
 
         mutating func parseIdentifierWithPointer(what: String) throws -> (String, JSONPointer?) {
-            let identifier = rest.prefix(while: ExpressionGrammar.isIdentifierCharacter)
+            let identifier = take(while: ExpressionGrammar.isIdentifierByte)
             guard !identifier.isEmpty else { throw fail("expected a \(what)") }
-            rest = rest.dropFirst(identifier.count)
             return (String(identifier), try parseOptionalPointer())
         }
 
@@ -402,7 +429,7 @@ extension Arazzo.RuntimeExpression {
         mutating func parseSource() throws -> Source {
             if consume("header.") {
                 let token = String(rest)
-                guard !token.isEmpty, token.allSatisfy(ExpressionGrammar.isTokenCharacter) else {
+                guard ExpressionGrammar.isToken(token) else {
                     throw fail("header names must be RFC 9110 tokens")
                 }
                 rest = rest[rest.endIndex...]
@@ -428,24 +455,23 @@ extension Arazzo.RuntimeExpression {
         /// `["#" json-pointer]`, or the non-standard dotted form `.a.b[0].c`.
         mutating func parseBodyPath() throws -> JSONPointer? {
             if rest.isEmpty { return nil }
-            if rest.first == "#" { return try parseOptionalPointer() }
-            guard rest.first == "." || rest.first == "[" else {
+            if rest.utf8.first == UInt8(ascii: "#") { return try parseOptionalPointer() }
+            guard rest.utf8.first == UInt8(ascii: ".") || rest.utf8.first == UInt8(ascii: "[") else {
                 throw fail("expected '#<json-pointer>' after body/payload")
             }
             nonStandard = true
             var tokens: [String] = []
             while !rest.isEmpty {
                 if consume(".") {
-                    let segment = rest.prefix { $0 != "." && $0 != "[" }
+                    let segment = take { $0 != UInt8(ascii: ".") && $0 != UInt8(ascii: "[") }
                     guard !segment.isEmpty else { throw fail("empty property name in path") }
                     tokens.append(String(segment))
-                    rest = rest.dropFirst(segment.count)
                 } else if consume("[") {
-                    let openBracket = original.index(before: rest.startIndex)
-                    guard let close = rest.firstIndex(of: "]") else {
+                    let openBracket = original.utf8.index(before: rest.startIndex)
+                    guard let close = rest.utf8.firstIndex(of: UInt8(ascii: "]")) else {
                         throw fail("unterminated '['", at: openBracket..<rest.endIndex)
                     }
-                    let bracket = openBracket..<rest.index(after: close)
+                    let bracket = openBracket..<rest.utf8.index(after: close)
                     var index = String(rest[..<close])
                     if let q = index.first, q == "'" || q == "\"" {
                         guard index.count >= 2, index.last == q else {
@@ -456,7 +482,7 @@ extension Arazzo.RuntimeExpression {
                         throw fail("unbalanced quote in '[\(index)]'", at: bracket)
                     }
                     tokens.append(index)
-                    rest = rest[rest.index(after: close)...]
+                    rest = rest[rest.utf8.index(after: close)...]
                 } else {
                     let character = rest.startIndex..<rest.index(after: rest.startIndex)
                     throw fail("unexpected character '\(rest.first!)' in path", at: character)
