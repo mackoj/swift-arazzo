@@ -6,7 +6,8 @@
 
 A Swift library for reading, writing, building and validating
 [Arazzo](https://www.openapis.org/arazzo-specification) descriptions — the OpenAPI Initiative's
-specification for describing sequences of API calls (workflows).
+specification for describing sequences of API calls (workflows). Overview and examples:
+[mackoj.github.io/swift-arazzo](https://mackoj.github.io/swift-arazzo/).
 
 In the spirit of [OpenAPIKit](https://github.com/mattpolzin/OpenAPIKit): strongly-typed `Codable`
 models for every object of the specification, with validation for the rules the type system
@@ -39,7 +40,7 @@ cannot express.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mackoj/swift-arazzo.git", branch: "main"),
+    .package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.1"),
 ],
 targets: [
     .target(name: "MyTool", dependencies: [
@@ -56,7 +57,7 @@ enabled by default. With Swift 6.1+, opt out to avoid building Yams; `ArazzoKitY
 JSON remains available through `ArazzoKit`:
 
 ```swift
-.package(url: "https://github.com/mackoj/swift-arazzo.git", branch: "main", traits: []),
+.package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.1", traits: []),
 ```
 
 Swift 6.0 has no package traits, so it always builds YAML support (`Package@swift-6.0.swift`).
