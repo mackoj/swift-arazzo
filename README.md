@@ -349,4 +349,17 @@ and the ported [Sextant](https://github.com/KittyMac/Sextant) suite — live in
 examples (an expression missing `.outputs.` in `bnpl-arazzo.yaml`, a misspelled source description
 in the 1.1.0 specification's root example); the tests assert they are reported.
 
+Benchmarks live in `Benchmarks/`, a separate package on
+[package-benchmark](https://github.com/ordo-one/package-benchmark) (see
+[Swift.org's introduction](https://www.swift.org/blog/benchmarks/)), so ArazzoKit never depends on it. They decode,
+encode and validate the published examples and a large generated description, and parse and evaluate expressions,
+conditions and criteria, measuring wall clock, CPU, allocations, retains and peak memory:
+
+```sh
+swift package --package-path Benchmarks benchmark
+# Compare a change against main:
+git switch main && swift package --package-path Benchmarks --allow-writing-to-package-directory benchmark baseline update main
+git switch - && swift package --package-path Benchmarks benchmark baseline compare main
+```
+
 CI runs on macOS and on Linux (Swift 6.0, 6.1 and 6.2), and checks the [architecture rules](docs/architecture-rules.md) on macOS. Pull requests also run the [swiftlang soundness checks](https://github.com/swiftlang/github-workflows) (swift-format, DocC, API breakage, YAML, shell, symlinks) and audit the workflows with actionlint and zizmor.

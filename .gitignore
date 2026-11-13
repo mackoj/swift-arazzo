@@ -3,6 +3,9 @@
 /.swiftpm
 /Architecture/.build
 /Architecture/.swiftpm
+/Benchmarks/.build
+/Benchmarks/.swiftpm
+/Benchmarks/.benchmarkBaselines
 /Packages
 xcuserdata/
 DerivedData/
