@@ -65,6 +65,9 @@ func evaluationContext() -> Arazzo.EvaluationContext {
 let benchmarks: @Sendable () -> Void = {
     Benchmark.defaultConfiguration = .init(
         metrics: [.wallClock, .cpuTotal, .mallocCountTotal, .peakMemoryResident, .retainCount],
+        // Exact counts and microseconds, so a change of a few percent shows up in a comparison.
+        timeUnits: .microseconds,
+        units: [.mallocCountTotal: .count, .retainCount: .count],
         maxDuration: .seconds(2),
         maxIterations: 1_000
     )
@@ -118,13 +121,14 @@ let benchmarks: @Sendable () -> Void = {
 
     // MARK: Expressions
 
-    Benchmark("Parse runtime expressions", configuration: .init(scalingFactor: .kilo)) { benchmark in
+    Benchmark("Parse runtime expressions", configuration: .init(timeUnits: .nanoseconds, scalingFactor: .kilo)) {
+        benchmark in
         for _ in benchmark.scaledIterations {
             for expression in expressions { blackHole(try Arazzo.RuntimeExpression(expression)) }
         }
     }
 
-    Benchmark("Parse conditions", configuration: .init(scalingFactor: .kilo)) { benchmark in
+    Benchmark("Parse conditions", configuration: .init(timeUnits: .nanoseconds, scalingFactor: .kilo)) { benchmark in
         for _ in benchmark.scaledIterations {
             for condition in conditions { blackHole(try Arazzo.Condition(condition)) }
         }
@@ -133,7 +137,7 @@ let benchmarks: @Sendable () -> Void = {
     let context = evaluationContext()
     let parsedConditions = conditions.map { try! Arazzo.Condition($0) }
 
-    Benchmark("Evaluate conditions", configuration: .init(scalingFactor: .kilo)) { benchmark in
+    Benchmark("Evaluate conditions", configuration: .init(timeUnits: .nanoseconds, scalingFactor: .kilo)) { benchmark in
         for _ in benchmark.scaledIterations {
             for condition in parsedConditions { blackHole(try? condition.evaluate(in: context)) }
         }
@@ -141,14 +145,16 @@ let benchmarks: @Sendable () -> Void = {
 
     let template = Arazzo.ExpressionTemplate("https://{$inputs.host}/pets/{$steps.create.outputs.id}?s={$statusCode}")
 
-    Benchmark("Render expression template", configuration: .init(scalingFactor: .kilo)) { benchmark in
+    Benchmark("Render expression template", configuration: .init(timeUnits: .nanoseconds, scalingFactor: .kilo)) {
+        benchmark in
         for _ in benchmark.scaledIterations { blackHole(try template.render { try context.resolve($0) }) }
     }
 
     let criterion = Arazzo.Criterion(
         context: try! .init("$response.body"), condition: "$.pets[?@.status == '{$inputs.status}']", type: .jsonPath)
 
-    Benchmark("Evaluate JSONPath criterion", configuration: .init(scalingFactor: .kilo)) { benchmark in
+    Benchmark("Evaluate JSONPath criterion", configuration: .init(timeUnits: .nanoseconds, scalingFactor: .kilo)) {
+        benchmark in
         for _ in benchmark.scaledIterations { blackHole(criterion.isSatisfied(in: context)) }
     }
 }
