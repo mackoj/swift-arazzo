@@ -156,9 +156,31 @@ extension Rule {
     )
 }
 
+extension Rule {
+    static let tryLeadsExpectations = Rule(
+        id: "try-leads-expectations",
+        title: "In `#expect` and `#require`, `try` comes first or not at all.",
+        category: .testing,
+        rationale: """
+            CI builds the tests on Swift 6.0 (CONSTRAINTS.md), whose `#expect` and `#require` expand the expression \
+            into a non-throwing autoclosure unless it starts with `try`. A `try` nested inside it, such as \
+            `#expect(x == .y(try z()))`, compiles on Swift 6.1 and later and fails on 6.0 with "call can throw, but \
+            it is executed in a non-throwing autoclosure".
+            """,
+        howToFix: "Compute the throwing value in a `let` before the expectation, or start the expression with `try`.",
+        badExample: """
+            #expect(condition == .expression(try .init("$statusCode"), accessors: []))
+            """,
+        goodExample: """
+            let statusCode = try Arazzo.RuntimeExpression("$statusCode")
+            #expect(condition == .expression(statusCode, accessors: []))
+            """
+    )
+}
+
 /// Every rule, in the order `docs/architecture-rules.md` lists them.
 let allRules: [Rule] = [
     .libraryPerformsNoIO, .foundationFallsBackFromEssentials, .importsStayWithinBudget,
     .publicModelsAreHashableAndSendable, .uncheckedSendableExplainsItself, .testsUseSwiftTesting,
-    .knownIssuesExplainThemselves, .testsAreNotDisabled,
+    .knownIssuesExplainThemselves, .testsAreNotDisabled, .tryLeadsExpectations,
 ]

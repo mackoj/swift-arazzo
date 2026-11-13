@@ -176,3 +176,22 @@ Good:
 ```swift
 @Test func decodesExample() throws {
 ```
+
+### In `#expect` and `#require`, `try` comes first or not at all.
+
+`try-leads-expectations`: CI builds the tests on Swift 6.0 (CONSTRAINTS.md), whose `#expect` and `#require` expand the expression into a non-throwing autoclosure unless it starts with `try`. A `try` nested inside it, such as `#expect(x == .y(try z()))`, compiles on Swift 6.1 and later and fails on 6.0 with "call can throw, but it is executed in a non-throwing autoclosure".
+
+**How to fix:** Compute the throwing value in a `let` before the expectation, or start the expression with `try`.
+
+Bad:
+
+```swift
+#expect(condition == .expression(try .init("$statusCode"), accessors: []))
+```
+
+Good:
+
+```swift
+let statusCode = try Arazzo.RuntimeExpression("$statusCode")
+#expect(condition == .expression(statusCode, accessors: []))
+```
