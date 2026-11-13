@@ -1,10 +1,5 @@
 import JSONPath
 
-extension Character {
-    var isASCIIDigit: Bool { isASCII && isNumber }
-    var isASCIILetter: Bool { isASCII && isLetter }
-}
-
 extension String {
     func replacingAll(_ target: Character, with replacement: String) -> String {
         var result = ""
