@@ -318,7 +318,7 @@ try Arazzo.Condition(
 
       <div class="panel" role="tabpanel" id="panel-read" aria-labelledby="tab-read">
         <p>Decode YAML or JSON, then navigate with enums instead of optional strings: a step's target is one of four cases, never two at once.</p>
-        <div class="code"><pre><code class="swift">let document = try Arazzo.Document(yaml: yamlString)          // YAML (or JSON) text
+        <div class="code"><pre><code class="swift" data-readme>let document = try Arazzo.Document(yaml: yamlString)          // YAML (or JSON) text
 let workflow = document.workflow(id: "loginUserAndRetrievePet")!
 let step = workflow.step(id: "getPetStep")!
 
@@ -336,7 +336,7 @@ if case .selector(let selector)? = step.outputs["petId"] {
 
       <div class="panel" role="tabpanel" id="panel-build" aria-labelledby="tab-build" hidden>
         <p>Build a description in code, with string literals that become runtime expressions and criteria, then encode it.</p>
-        <div class="code"><pre><code class="swift">let document = Arazzo.Document(
+        <div class="code"><pre><code class="swift" data-readme>let document = Arazzo.Document(
     info: .init(title: "Pets", version: "1.0.0"),
     sourceDescriptions: [.init(name: "petstore", url: "https://example.com/openapi.yaml", type: .openapi)],
     workflows: [
@@ -364,7 +364,7 @@ let yaml = try document.yamlString()</code></pre></div>
 
       <div class="panel" role="tabpanel" id="panel-validate" aria-labelledby="tab-validate" hidden>
         <p>Validate against the specification, fail a build on errors (or warnings), and add rules of your own.</p>
-        <div class="code"><pre><code class="swift">for issue in document.validate() {
+        <div class="code"><pre><code class="swift" data-readme>for issue in document.validate() {
     print(issue)   // [error] /workflows/0/steps/1/operationId: operationId references unknown source description 'petstoreDescription'. (step-targets)
 }
 
@@ -381,7 +381,7 @@ let issues = document.validate(using: .default.adding(summaries).removing("async
 
       <div class="panel" role="tabpanel" id="panel-evaluate" aria-labelledby="tab-evaluate" hidden>
         <p>Parse runtime expressions, render templates, and evaluate success criteria against a response, the way a workflow runner does.</p>
-        <div class="code"><pre><code class="swift">let expression = try Arazzo.RuntimeExpression("$steps.login.outputs.token#/access")
+        <div class="code"><pre><code class="swift" data-readme>let expression = try Arazzo.RuntimeExpression("$steps.login.outputs.token#/access")
 expression.kind   // .steps(stepId: "login", outputName: "token", pointer: /access)
 
 let template = Arazzo.ExpressionTemplate("https://{$inputs.host}/pets/{$steps.create.outputs.id}")
@@ -398,7 +398,7 @@ step.successCriteria?.areSatisfied(in: context)</code></pre></div>
 
       <div class="panel" role="tabpanel" id="panel-resolve" aria-labelledby="tab-resolve" hidden>
         <p>Resolve reusable components and workflow-level overrides, and get an execution order that honours <code>dependsOn</code> and <code>$steps</code> references.</p>
-        <div class="code"><pre><code class="swift">let parameters = try document.effectiveParameters(for: step, in: workflow)        // workflow params + step overrides, reusables resolved
+        <div class="code"><pre><code class="swift" data-readme>let parameters = try document.effectiveParameters(for: step, in: workflow)        // workflow params + step overrides, reusables resolved
 let onSuccess  = try document.effectiveSuccessActions(for: step, in: workflow)
 let onFailure  = try document.effectiveFailureActions(for: step, in: workflow)
 let inputs     = try document.resolvedInputs(for: workflow)                       // follows #/components/inputs/…
@@ -465,7 +465,7 @@ let order      = try workflow.executionOrder(components: document.components)   
     <div class="install">
       <div class="code">
         <div class="bar"><span>Package.swift</span><button class="copy" type="button" data-copy="install-snippet">Copy</button></div>
-<pre><code class="swift" id="install-snippet">dependencies: [
+<pre><code class="swift" id="install-snippet" data-readme>dependencies: [
     .package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.1"),
 ],
 targets: [

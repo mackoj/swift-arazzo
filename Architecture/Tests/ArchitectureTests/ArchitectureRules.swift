@@ -45,6 +45,12 @@ struct ArchitectureRules {
     @Test func testsAreNotDisabled() throws {
         expectNone(Detect.disabledTests(in: try Self.tests()), rule: .testsAreNotDisabled)
     }
+
+    @Test func tryLeadsExpectations() throws {
+        let tests = try Self.tests()
+        #expect(tests.containing("#expect").relativePaths.count > 5)
+        expectNone(Detect.nestedTryInExpectations(in: tests), rule: .tryLeadsExpectations)
+    }
 }
 
 /// Keeps `docs/architecture-rules.md` in step with the rules. Regenerate with

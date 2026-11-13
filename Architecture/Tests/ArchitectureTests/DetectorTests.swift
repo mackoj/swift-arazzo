@@ -135,6 +135,20 @@ import Testing
         #expect(found.map(\.location.line) == [1, 2])
     }
 
+    @Test func nestedTryInExpectationsIsFound() {
+        let found = Detect.nestedTryInExpectations(
+            in: scope(
+                """
+                #expect(condition == .expression(try .init("$statusCode"), accessors: []))
+                #expect(try parse("a") == try parse("b"))
+                #require(try value())
+                #expect(throws: ParseError.self) { try parse("") }
+                #expect(values.map { try? parse($0) } == [nil])
+                #require(Int(try text()) != nil)
+                """, at: "Tests/T/A.swift"))
+        #expect(found.map(\.location.line) == [1, 6])
+    }
+
     @Test func disabledTestsAreFound() {
         let found = Detect.disabledTests(
             in: scope(

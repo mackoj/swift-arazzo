@@ -25,7 +25,13 @@ Run these before handing back a code change; each must pass.
 | Workflows and YAML | 0 findings | `actionlint`, `zizmor .github/workflows` and `yamllint --strict .` |
 | ArazzoKit dependency budget | `ArazzoKit` depends only on swift-jsonpath's `JSONPath`, and Yams stays behind the `YAML` trait; `import Foundation` appears only as the `#else` of `#if canImport(FoundationEssentials)` | `Package.swift` review and `grep -rn -B3 '^import Foundation$' Sources/ArazzoKit` |
 
-Linux is the platform most likely to break (no Objective-C Foundation, older toolchains): CI runs Swift 6.0, 6.1 and 6.2 in Linux containers. When a change touches Foundation APIs, regexes or platform guards, say whether you checked it on Linux (for example `docker run --rm -v "$PWD":/src -w /src swift:6.0 swift test`) or leave it to CI.
+Linux and Swift 6.0 are where a change most often breaks (no Objective-C Foundation, an older compiler and Swift Testing): CI runs Swift 6.0, 6.1 and 6.2 in Linux containers. Check the oldest one locally with Apple's `container` CLI (`container system start` once), which builds in its own scratch path:
+
+```sh
+container run --rm -v "$PWD":/src -w /src swift:6.0 swift test --scratch-path .build/linux-6.0
+```
+
+Older swiftly toolchains do not build against the current macOS SDK, so the container is the local check. When a change touches Foundation APIs, regexes, platform guards or test macros, run it or say you left it to CI.
 
 ## Exceptions
 
