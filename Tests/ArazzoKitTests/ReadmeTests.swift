@@ -6,6 +6,31 @@ import Testing
 /// Keeps the README snippets compiling and truthful.
 @Suite("README examples")
 struct ReadmeTests {
+    /// The landing page repeats README snippets in its code tour and install section (`data-readme` blocks); every
+    /// line of them must be a README line, so this suite's checks of the README cover the page too.
+    @Test func sitePagesQuoteTheReadme() throws {
+        // Given the README and the landing page
+        let root = Fixtures.directory.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let readme = try String(contentsOf: root.appendingPathComponent("README.md"), encoding: .utf8)
+        let page = try String(contentsOf: root.appendingPathComponent("site/index.html"), encoding: .utf8)
+
+        // When the page's README blocks are read back as text
+        let blocks = page.components(separatedBy: " data-readme>").dropFirst().map { block in
+            String(block.prefix { $0 != "<" })
+                .replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
+                .replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&amp;", with: "&")
+        }
+        let readmeLines = Set(readme.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        let strayLines = blocks.flatMap { $0.split(separator: "\n").map(String.init) }.filter {
+            !readmeLines.contains($0)
+        }
+
+        // Then there are blocks, and each of their lines is in the README
+        #expect(blocks.count == 6)
+        #expect(strayLines == [])
+    }
+
     @Test func navigating() throws {
         let document = try Fixtures.document("pet-purchase-spec-example-1.1.arazzo.yaml")
         let workflow = try #require(document.workflow(id: "loginUserAndRetrievePet"))
