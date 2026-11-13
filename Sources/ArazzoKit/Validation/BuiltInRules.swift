@@ -886,9 +886,11 @@ enum BuiltInRules {
         func checkInputName(
             _ name: String, schema: Arazzo.JSONSchema, path: String, expression: Arazzo.RuntimeExpression
         ) {
-            guard !schema.isComposite, !schema.properties.isEmpty else { return }
+            // `properties` builds a dictionary on each read: read it once.
+            let properties = schema.properties
+            guard !schema.isComposite, !properties.isEmpty else { return }
             let root = String(name.split(separator: ".").first ?? Substring(name))
-            if schema.properties[name] == nil, schema.properties[root] == nil {
+            if properties[name] == nil, properties[root] == nil {
                 report.warning(
                     path,
                     "'\(expression.rawValue)' references input '\(name)', which the inputs schema does not declare.")
