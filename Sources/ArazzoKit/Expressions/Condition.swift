@@ -258,112 +258,129 @@ private struct ConditionParser {
         .init(condition: source, message: message)
     }
 
+    /// Tokenizes the string's Unicode scalars in place rather than its `Character`s: grapheme breaking is the slowest
+    /// part of reading text, and `Character`'s `isWhitespace`, `isLetter` and `isNumber` are its first scalar's
+    /// properties anyway. Token text is sliced from `source`, never rebuilt scalar by scalar.
     static func tokenize(_ source: String) throws -> [ConditionToken] {
-        let characters = Array(source)
+        let scalars = source.unicodeScalars
+        let end = scalars.endIndex
         var tokens: [ConditionToken] = []
-        var i = 0
+        var i = scalars.startIndex
         func fail(_ message: String) -> Arazzo.Condition.ParseError {
             .init(condition: source, message: message)
         }
-        let expressionTerminators: Set<Character> = [
-            "(", ")", "<", ">", "=", "!", "&", "|", "[", "]", " ", "\t", "\n", "\r",
-        ]
-        while i < characters.count {
-            let c = characters[i]
-            if c.isWhitespace {
-                i += 1
+        /// The scalar after `index`, if any.
+        func scalar(after index: String.Index) -> Unicode.Scalar? {
+            let next = scalars.index(after: index)
+            return next < end ? scalars[next] : nil
+        }
+        func endsExpression(_ c: Unicode.Scalar) -> Bool {
+            switch c {
+            case "(", ")", "<", ">", "=", "!", "&", "|", "[", "]", " ", "\t", "\n", "\r": true
+            default: false
+            }
+        }
+        while i < end {
+            let c = scalars[i]
+            if c.isConditionWhitespace {
+                i = scalars.index(after: i)
                 continue
             }
             switch c {
             case "$":
                 var j = i
-                while j < characters.count, !expressionTerminators.contains(characters[j]) { j += 1 }
-                tokens.append(.expression(String(characters[i..<j])))
+                while j < end, !endsExpression(scalars[j]) { j = scalars.index(after: j) }
+                tokens.append(.expression(String(source[i..<j])))
                 i = j
             case "'":
                 var value = ""
-                var j = i + 1
+                var j = scalars.index(after: i)
+                var run = j
                 var closed = false
-                while j < characters.count {
-                    if characters[j] == "'" {
-                        if j + 1 < characters.count, characters[j + 1] == "'" {
-                            value.append("'")
-                            j += 2
+                while j < end {
+                    if scalars[j] == "'" {
+                        value += source[run..<j]
+                        j = scalars.index(after: j)
+                        if j < end, scalars[j] == "'" {
+                            value += "'"
+                            j = scalars.index(after: j)
+                            run = j
                             continue
                         }
                         closed = true
-                        j += 1
                         break
                     }
-                    value.append(characters[j])
-                    j += 1
+                    j = scalars.index(after: j)
                 }
                 guard closed else { throw fail("unterminated string literal") }
                 tokens.append(.string(value))
                 i = j
             case "(":
                 tokens.append(.leftParen)
-                i += 1
+                i = scalars.index(after: i)
             case ")":
                 tokens.append(.rightParen)
-                i += 1
+                i = scalars.index(after: i)
             case "[":
                 tokens.append(.leftBracket)
-                i += 1
+                i = scalars.index(after: i)
             case "]":
                 tokens.append(.rightBracket)
-                i += 1
+                i = scalars.index(after: i)
             case ".":
                 // A leading '.' followed by digits is a number (e.g. .5).
-                if i + 1 < characters.count, characters[i + 1].isASCIIDigit,
+                if scalar(after: i)?.isASCIIDigit == true,
                     tokens.last.map({ if case .rightBracket = $0 { false } else { true } }) ?? true
                 {
                     fallthrough
                 }
                 tokens.append(.dot)
-                i += 1
+                i = scalars.index(after: i)
             case "-", "0"..."9":
                 var j = i
-                if characters[j] == "-" { j += 1 }
+                if scalars[j] == "-" { j = scalars.index(after: j) }
                 var isInteger = true
-                while j < characters.count,
-                    characters[j].isASCIIDigit || characters[j] == "." || characters[j] == "e" || characters[j] == "E"
-                        || ((characters[j] == "+" || characters[j] == "-")
-                            && (characters[j - 1] == "e" || characters[j - 1] == "E"))
-                {
-                    if !characters[j].isASCIIDigit { isInteger = false }
-                    j += 1
+                var previous: Unicode.Scalar = c
+                while j < end {
+                    let d = scalars[j]
+                    guard
+                        d.isASCIIDigit || d == "." || d == "e" || d == "E"
+                            || ((d == "+" || d == "-") && (previous == "e" || previous == "E"))
+                    else { break }
+                    if !d.isASCIIDigit { isInteger = false }
+                    previous = d
+                    j = scalars.index(after: j)
                 }
-                let text = String(characters[i..<j])
+                let text = String(source[i..<j])
                 guard let number = Double(text) else { throw fail("invalid number '\(text)'") }
                 tokens.append(.number(number, integer: isInteger ? Int(text) : nil))
                 i = j
             case "=", "!", "<", ">":
-                if i + 1 < characters.count, characters[i + 1] == "=" {
+                if scalar(after: i) == "=" {
                     tokens.append(.op(String(c) + "="))
-                    i += 2
+                    i = scalars.index(i, offsetBy: 2)
                 } else if c == "=" {
                     throw fail("use '==' for equality")
                 } else {
                     tokens.append(.op(String(c)))
-                    i += 1
+                    i = scalars.index(after: i)
                 }
             case "&", "|":
-                guard i + 1 < characters.count, characters[i + 1] == c else {
+                guard scalar(after: i) == c else {
                     throw fail("use '\(c)\(c)' for logical operators")
                 }
                 tokens.append(.op(String(c) + String(c)))
-                i += 2
+                i = scalars.index(i, offsetBy: 2)
             default:
-                if c.isLetter || c == "_" {
+                if c.isConditionLetter || c == "_" {
                     var j = i
-                    while j < characters.count,
-                        characters[j].isLetter || characters[j].isNumber || characters[j] == "_"
-                            || characters[j] == "-"
+                    while j < end,
+                        scalars[j].isConditionLetter || scalars[j].isConditionNumber || scalars[j] == "_"
+                            || scalars[j] == "-"
                     {
-                        j += 1
+                        j = scalars.index(after: j)
                     }
-                    tokens.append(.identifier(String(characters[i..<j])))
+                    tokens.append(.identifier(String(source[i..<j])))
                     i = j
                 } else {
                     throw fail("unexpected character '\(c)'")
@@ -478,4 +495,22 @@ private struct ConditionParser {
             throw fail("unexpected token")
         }
     }
+}
+
+extension Unicode.Scalar {
+    // `Character.isWhitespace`, `isLetter` and `isNumber` on a scalar, without a property lookup for ASCII.
+
+    fileprivate var isConditionWhitespace: Bool {
+        isASCII ? value == 0x20 || (0x09...0x0D).contains(value) : properties.isWhitespace
+    }
+
+    fileprivate var isConditionLetter: Bool {
+        isASCII ? ("a"..."z").contains(self) || ("A"..."Z").contains(self) : properties.isAlphabetic
+    }
+
+    fileprivate var isConditionNumber: Bool {
+        isASCII ? isASCIIDigit : properties.numericType != nil
+    }
+
+    fileprivate var isASCIIDigit: Bool { ("0"..."9").contains(self) }
 }

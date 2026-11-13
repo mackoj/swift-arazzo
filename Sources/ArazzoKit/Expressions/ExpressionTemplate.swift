@@ -51,41 +51,46 @@ extension Arazzo {
             var invalid: [InvalidExpression] = []
             var literal = ""
             var literalStart = string.startIndex
+            // `{`, `$` and `}` are ASCII, so they are found on the UTF-8 view, and the literal text between
+            // expressions is appended run by run (from `run`) rather than one `Character` at a time.
+            let utf8 = string.utf8
+            var run = string.startIndex
             var index = string.startIndex
-            while index < string.endIndex {
-                let character = string[index]
-                let next = string.index(after: index)
-                if character == "{", next < string.endIndex, string[next] == "$",
-                    let close = string[next...].firstIndex(of: "}")
-                {
-                    let text = String(string[next..<close])
-                    let end = string.index(after: close)
-                    do {
-                        let expression = try RuntimeExpression(text)
-                        if !literal.isEmpty {
-                            located.append(LocatedSegment(segment: .literal(literal), range: literalStart..<index))
-                            literal = ""
-                        }
-                        located.append(LocatedSegment(segment: .expression(expression), range: index..<end))
-                        literalStart = end
-                    } catch let error as RuntimeExpression.ParseError {
-                        // `text` is a copy of `string[next..<close]`, so UTF-8 offsets carry over.
-                        func templateIndex(_ i: String.Index) -> String.Index {
-                            string.utf8.index(next, offsetBy: text.utf8.distance(from: text.startIndex, to: i))
-                        }
-                        let errorRange = templateIndex(error.range.lowerBound)..<templateIndex(error.range.upperBound)
-                        invalid.append(
-                            InvalidExpression(text: text, error: error, range: index..<end, errorRange: errorRange))
-                        literal += string[index...close]
-                    } catch {
-                        literal += string[index...close]
-                    }
-                    index = end
-                } else {
-                    literal.append(character)
+            while let open = utf8[index...].firstIndex(of: UInt8(ascii: "{")) {
+                let next = utf8.index(after: open)
+                guard next < utf8.endIndex, utf8[next] == UInt8(ascii: "$"),
+                    let close = utf8[next...].firstIndex(of: UInt8(ascii: "}"))
+                else {
                     index = next
+                    continue
                 }
+                let text = String(string[next..<close])
+                let end = utf8.index(after: close)
+                literal += string[run..<open]
+                do {
+                    let expression = try RuntimeExpression(text)
+                    if !literal.isEmpty {
+                        located.append(LocatedSegment(segment: .literal(literal), range: literalStart..<open))
+                        literal = ""
+                    }
+                    located.append(LocatedSegment(segment: .expression(expression), range: open..<end))
+                    literalStart = end
+                } catch let error as RuntimeExpression.ParseError {
+                    // `text` is a copy of `string[next..<close]`, so UTF-8 offsets carry over.
+                    func templateIndex(_ i: String.Index) -> String.Index {
+                        string.utf8.index(next, offsetBy: text.utf8.distance(from: text.startIndex, to: i))
+                    }
+                    let errorRange = templateIndex(error.range.lowerBound)..<templateIndex(error.range.upperBound)
+                    invalid.append(
+                        InvalidExpression(text: text, error: error, range: open..<end, errorRange: errorRange))
+                    literal += string[open...close]
+                } catch {
+                    literal += string[open...close]
+                }
+                run = end
+                index = end
             }
+            literal += string[run...]
             if !literal.isEmpty {
                 located.append(LocatedSegment(segment: .literal(literal), range: literalStart..<string.endIndex))
             }

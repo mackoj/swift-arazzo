@@ -72,6 +72,25 @@ struct ConditionTests {
         #expect(throws: Arazzo.Condition.ParseError.self) { try Arazzo.Condition(condition) }
     }
 
+    @Test func readsNonASCIIText() throws {
+        // Given Unicode whitespace between tokens, a literal with a multi-scalar character and a non-ASCII property
+        let spaced = try Arazzo.Condition("200\u{2003}==\u{00A0}$statusCode")
+        let literal = try Arazzo.Condition("$inputs.name == 'café ☕️'")
+        let accessor = try Arazzo.Condition("$response.body['pets'].naïve == 1")
+
+        // Then they parse as their ASCII equivalents would
+        let statusCode = try Arazzo.RuntimeExpression("$statusCode")
+        let name = try Arazzo.RuntimeExpression("$inputs.name")
+        let body = try Arazzo.RuntimeExpression("$response.body")
+        #expect(spaced == .binary(.literal(.integer(200)), .equal, .expression(statusCode, accessors: [])))
+        #expect(literal == .binary(.expression(name, accessors: []), .equal, .literal("café ☕️")))
+        #expect(
+            accessor
+                == .binary(
+                    .expression(body, accessors: [.property("pets"), .property("naïve")]), .equal,
+                    .literal(.integer(1))))
+    }
+
     @Test func collectsRuntimeExpressions() throws {
         let condition = try Arazzo.Condition("$statusCode == 200 && $steps.a.outputs.b != $inputs.c")
         #expect(condition.runtimeExpressions.map(\.rawValue) == ["$statusCode", "$steps.a.outputs.b", "$inputs.c"])
