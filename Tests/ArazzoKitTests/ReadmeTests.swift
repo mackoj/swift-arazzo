@@ -110,6 +110,30 @@ struct ReadmeTests {
         #expect(smoke.validate().errors.isEmpty)
     }
 
+    @Test func buildingWithModelTypesAndHandles() throws {
+        let workflow = Arazzo.Workflow("adopt", summary: "Adopt a pet") {
+            Arazzo.Step("getPet", target: .operationId("getPetById"), timeout: 5_000) {
+                Arazzo.Parameter(name: "petId", in: .path, value: "$inputs.petId")
+                Arazzo.Criterion.simple("$statusCode == 200")
+            }
+        }
+        #expect(workflow.steps.first?.parameters.count == 1)
+
+        let adopt = Arazzo.Document {
+            Workflow("adopt") {
+                let petId = Input("petId", schema: ["type": "integer"], required: true)
+                petId
+                let getPet = Step("getPet", operationId: "getPetById") {
+                    Parameter("petId", in: .path, value: petId.expression)  // $inputs.petId
+                    Output("name", "$response.body#/name")
+                }
+                getPet
+                Output("adoptedName", getPet.output("name"))  // $steps.getPet.outputs.name
+            }
+        }
+        #expect(adopt.workflows[0].outputs["adoptedName"]?.runtimeExpression.rawValue == "$steps.getPet.outputs.name")
+    }
+
     @Test func expressionsAndEvaluation() throws {
         let expression = try Arazzo.RuntimeExpression("$steps.login.outputs.token#/access")
         #expect(

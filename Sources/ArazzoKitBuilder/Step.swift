@@ -13,6 +13,12 @@
 /// Each initialiser names one target, so a step always has exactly one. Scalar fields are modifiers; the body holds
 /// the collections: ``Parameter``, ``RequestBody``, ``SuccessCriterion``, ``SuccessAction``, ``FailureAction`` and
 /// ``Output``.
+///
+/// Where `Step` names a type of your own, write the same step with the model type's initialiser:
+///
+/// ```swift
+/// Arazzo.Step("getPet", target: .operationId("getPetById"), description: "Fetch the pet") { ... }
+/// ```
 public struct Step: WorkflowComponent {
     /// The Step Object built so far.
     public var step: Arazzo.Step
@@ -55,8 +61,7 @@ public struct Step: WorkflowComponent {
         _ stepId: String, target: Arazzo.Step.Target, vendorExtensions: VendorExtensions,
         _ content: () -> [any StepComponent]
     ) {
-        step = Arazzo.Step(stepId: stepId, target: target, vendorExtensions: vendorExtensions)
-        for component in content() { component.apply(to: &step) }
+        step = Arazzo.Step(stepId, target: target, vendorExtensions: vendorExtensions, content)
     }
 
     /// Sets the `description`.
@@ -88,8 +93,65 @@ public struct Step: WorkflowComponent {
         return copy
     }
 
+    /// The `$steps.<stepId>.outputs.<name>` expression that reads this step's output `name`.
+    ///
+    /// It follows a renamed step, but cannot check that the step declares `name`: `validate()` warns about that.
+    public func output(_ name: String) -> Arazzo.RuntimeExpression {
+        step.output(name)
+    }
+
     public func apply(to workflow: inout Arazzo.Workflow) {
         workflow.steps.append(step)
+    }
+}
+
+extension Arazzo.Step: WorkflowComponent {
+    /// Builds a Step Object from the parts in `content`: ``ArazzoKitBuilder/Parameter``,
+    /// ``ArazzoKitBuilder/RequestBody``, ``ArazzoKitBuilder/SuccessCriterion``, ``ArazzoKitBuilder/SuccessAction``,
+    /// ``ArazzoKitBuilder/FailureAction`` and ``ArazzoKitBuilder/Output``, or the model values they stand for.
+    ///
+    /// ```swift
+    /// Arazzo.Step("getPet", target: .operationId("getPetById"), description: "Fetch the pet") {
+    ///     Parameter("petId", in: .path, value: "$inputs.petId")
+    ///     SuccessCriterion("$statusCode == 200")
+    /// }
+    /// ```
+    ///
+    /// It is the same step as ``ArazzoKitBuilder/Step``, under a name that cannot clash with a `Step` of your own,
+    /// and it is the model value itself, so no unwrapping is needed outside a builder. The scalar fields are its
+    /// parameters.
+    ///
+    /// - Parameters:
+    ///   - stepId: The `stepId`.
+    ///   - target: The operation, channel or workflow the step invokes.
+    ///   - description: The `description`.
+    ///   - timeout: `timeout`, in milliseconds (Arazzo 1.1).
+    ///   - correlationId: `correlationId` of an AsyncAPI step (Arazzo 1.1).
+    ///   - action: `action` of an AsyncAPI step (Arazzo 1.1).
+    ///   - dependsOn: The steps that must complete before this one (Arazzo 1.1).
+    ///   - vendorExtensions: `x-` fields of the object.
+    ///   - content: The step's parts, applied in source order.
+    public init(
+        _ stepId: String, target: Target, description: String? = nil, timeout: Int? = nil,
+        correlationId: String? = nil, action: AsyncAction? = nil, dependsOn: [String] = [],
+        vendorExtensions: VendorExtensions = [:], @StepBuilder _ content: () -> [any StepComponent] = { [] }
+    ) {
+        self.init(
+            stepId: stepId, description: description, target: target, timeout: timeout,
+            correlationId: correlationId, action: action, dependsOn: dependsOn, vendorExtensions: vendorExtensions)
+        for component in content() { component.apply(to: &self) }
+    }
+
+    /// The `$steps.<stepId>.outputs.<name>` expression that reads this step's output `name`.
+    ///
+    /// It follows a renamed step, but cannot check that the step declares `name`: `validate()` warns about that.
+    public func output(_ name: String) -> Arazzo.RuntimeExpression {
+        Arazzo.RuntimeExpression(.steps(stepId: stepId, outputName: name, pointer: nil))
+    }
+
+    /// Appends this step to the workflow's `steps`.
+    public func apply(to workflow: inout Arazzo.Workflow) {
+        workflow.steps.append(self)
     }
 }
 
@@ -100,6 +162,7 @@ public struct Step: WorkflowComponent {
 public struct Parameter: WorkflowComponent, StepComponent, ReusableComponent {
     /// The parameter, inline or as a reference to `$components.parameters`.
     public var parameter: Arazzo.ReusableOr<Arazzo.Parameter>
+    var componentKey: String?
 
     /// Creates an inline parameter, such as `Parameter("petId", in: .path, value: "$inputs.petId")`.
     ///
@@ -114,6 +177,25 @@ public struct Parameter: WorkflowComponent, StepComponent, ReusableComponent {
     ) {
         parameter = .inline(
             Arazzo.Parameter(name: name, in: location, value: value, vendorExtensions: vendorExtensions))
+    }
+
+    /// Creates an inline parameter whose value is a runtime expression, such as one from ``Input/expression`` or
+    /// ``Step/output(_:)``.
+    public init(
+        _ name: String, in location: Arazzo.Parameter.Location? = nil, value: Arazzo.RuntimeExpression,
+        vendorExtensions: VendorExtensions = [:]
+    ) {
+        self.init(name, in: location, value: .expression(value), vendorExtensions: vendorExtensions)
+    }
+
+    /// Sets the key of this parameter in ``Components``, which defaults to its `name`.
+    ///
+    /// The key is what a reference names: `Parameter("X-Trace-Id", in: .header, value: "t").componentKey("traceId")`
+    /// is referenced as `Parameter.reference("traceId")`. Outside ``Components`` it has no effect.
+    public func componentKey(_ key: String) -> Self {
+        var copy = self
+        copy.componentKey = key
+        return copy
     }
 
     /// A Reusable Object pointing at `$components.parameters.<name>`, with an optional `value` override.
@@ -135,7 +217,25 @@ public struct Parameter: WorkflowComponent, StepComponent, ReusableComponent {
 
     public func apply(to components: inout Arazzo.Components) {
         guard let parameter = parameter.inlineValue else { return }
-        components.parameters[parameter.name] = parameter
+        components.parameters[componentKey ?? parameter.name] = parameter
+    }
+}
+
+extension Arazzo.Parameter: WorkflowComponent, StepComponent, ReusableComponent {
+    /// Appends this parameter to the workflow's `parameters`.
+    public func apply(to workflow: inout Arazzo.Workflow) {
+        workflow.parameters.append(.inline(self))
+    }
+
+    /// Appends this parameter to the step's `parameters`.
+    public func apply(to step: inout Arazzo.Step) {
+        step.parameters.append(.inline(self))
+    }
+
+    /// Defines `components.parameters.<name>`. Use ``ArazzoKitBuilder/Parameter/componentKey(_:)`` for a key other than
+    /// the name.
+    public func apply(to components: inout Arazzo.Components) {
+        components.parameters[name] = self
     }
 }
 
@@ -156,6 +256,13 @@ public struct RequestBody: StepComponent {
 
     public func apply(to step: inout Arazzo.Step) {
         step.requestBody = requestBody
+    }
+}
+
+extension Arazzo.RequestBody: StepComponent {
+    /// Sets the step's `requestBody`. With several, the last one wins.
+    public func apply(to step: inout Arazzo.Step) {
+        step.requestBody = self
     }
 }
 
@@ -184,5 +291,12 @@ public struct SuccessCriterion: StepComponent {
 
     public func apply(to step: inout Arazzo.Step) {
         step.successCriteria = (step.successCriteria ?? []) + [criterion]
+    }
+}
+
+extension Arazzo.Criterion: StepComponent {
+    /// Appends this criterion to the step's `successCriteria`, as ``ArazzoKitBuilder/SuccessCriterion`` does.
+    public func apply(to step: inout Arazzo.Step) {
+        step.successCriteria = (step.successCriteria ?? []) + [self]
     }
 }

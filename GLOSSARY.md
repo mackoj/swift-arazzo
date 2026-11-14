@@ -25,8 +25,12 @@ An `x-`prefixed field allowed on every extensible object, kept as `JSONValue` in
 _Avoid_: custom field, metadata
 
 **Document builder** (`ArazzoKitBuilder`):
-The result-builder DSL that writes a Document in Swift (`Arazzo.Document { ... }`). It produces a plain `Arazzo.Document` and checks nothing; `validate()` reports problems as for a decoded Document. Its `Workflow`, `Step`, `Parameter` and other types are top-level, not under `Arazzo`.
+The result-builder DSL that writes a Document in Swift (`Arazzo.Document { ... }`). It produces a plain `Arazzo.Document` and checks nothing; `validate()` reports problems as for a decoded Document. Its `Workflow`, `Step`, `Parameter` and other types are top-level, not under `Arazzo`; `Arazzo.Workflow`, `Arazzo.Step` and `Arazzo.Components` take the same bodies under names that cannot clash.
 _Avoid_: DSL document, builder document (the result is just a Document)
+
+**Typed reference** (`Input.expression`, `Step.output(_:)`, `Workflow.output(_:)`):
+A runtime expression written from a builder value instead of a string, so a rename reaches every reference. It does not check that the output exists; validation does.
+_Avoid_: handle (in documentation), typed expression
 
 ## Workflows and steps
 

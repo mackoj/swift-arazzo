@@ -42,7 +42,7 @@ cannot express.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.2"),
+    .package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.3"),
 ],
 targets: [
     .target(name: "MyTool", dependencies: [
@@ -60,7 +60,7 @@ enabled by default. With Swift 6.1+, opt out to avoid building Yams; `ArazzoKitY
 JSON remains available through `ArazzoKit`:
 
 ```swift
-.package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.2", traits: []),
+.package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.3", traits: []),
 ```
 
 Swift 6.0 has no package traits, so it always builds YAML support (`Package@swift-6.0.swift`).
@@ -224,9 +224,44 @@ let smoke = Arazzo.Document {
 Collections go in the body; scalar fields go in the initialiser or a modifier (`.description`,
 `.timeout`, `.dependsOn`, `.async(.receive, correlationId:)` on a step, `.inputs` and `.dependsOn` on a
 workflow). `Parameter.reference("page", value: 2)` and `OnFailure.reference("backoff")` become
-Reusable Objects. The builder checks nothing: `validate()` reports problems as for a decoded
-document. A keyed field keeps the last value written, so of two `Output("name", …)` in one step only
-the second remains. The types are top-level: write `ArazzoKitBuilder.Step` if one clashes with yours.
+Reusable Objects. In `Components`, a definition is keyed by its name unless
+`.componentKey("traceId")` says otherwise. The builder checks nothing: `validate()` reports problems
+as for a decoded document. A keyed field keeps the last value written, so of two `Output("name", …)`
+in one step only the second remains.
+
+The builder types are top-level, so `Workflow` or `Step` may clash with types of your own. The model
+types take the same bodies under names that cannot clash, with their scalar fields as parameters, and
+model values go into any body:
+
+```swift
+let workflow = Arazzo.Workflow("adopt", summary: "Adopt a pet") {
+    Arazzo.Step("getPet", target: .operationId("getPetById"), timeout: 5_000) {
+        Arazzo.Parameter(name: "petId", in: .path, value: "$inputs.petId")
+        Arazzo.Criterion.simple("$statusCode == 200")
+    }
+}
+```
+
+Handles write runtime expressions for you, so renaming an input or a step renames every reference:
+
+```swift
+let adopt = Arazzo.Document {
+    Workflow("adopt") {
+        let petId = Input("petId", schema: ["type": "integer"], required: true)
+        petId
+        let getPet = Step("getPet", operationId: "getPetById") {
+            Parameter("petId", in: .path, value: petId.expression)    // $inputs.petId
+            Output("name", "$response.body#/name")
+        }
+        getPet
+        Output("adoptedName", getPet.output("name"))                  // $steps.getPet.outputs.name
+    }
+}
+```
+
+A handle bound with `let` must also be listed on its own line (`getPet` above) to be part of the
+body: a result builder only collects expressions. `output("name")` cannot check that the step
+declares a `name` output; `validate()` warns when it does not.
 
 ### Validation
 
