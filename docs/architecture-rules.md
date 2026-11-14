@@ -100,7 +100,7 @@ public struct Criterion: Hashable, Sendable, VendorExtendable {
 
 `unchecked-sendable-explains-itself`: `@unchecked Sendable` turns off the compiler's data-race check for the type. The comment is the only proof left that the type is safe to share (CODING_STANDARDS.md, "Sendable value types"); shared mutable state belongs in an `actor` instead.
 
-**How to fix:** Prefer a value type or an `actor`. If neither fits, put a comment on the declaration that says what guards the mutable state.
+**How to fix:** Prefer a value type or an `actor`. If neither fits, put a `//` comment (not a `///` doc comment) just above the declaration, or at the start of its body, that says what guards the mutable state.
 
 Bad:
 

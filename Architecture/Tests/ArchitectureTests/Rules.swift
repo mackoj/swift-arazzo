@@ -95,8 +95,8 @@ extension Rule {
             state belongs in an `actor` instead.
             """,
         howToFix: """
-            Prefer a value type or an `actor`. If neither fits, put a comment on the declaration that says what \
-            guards the mutable state.
+            Prefer a value type or an `actor`. If neither fits, put a `//` comment (not a `///` doc comment) just \
+            above the declaration, or at the start of its body, that says what guards the mutable state.
             """,
         badExample: "final class Cache: @unchecked Sendable {",
         goodExample: """
