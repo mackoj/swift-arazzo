@@ -10,6 +10,9 @@
 ///
 /// Scalar fields are initialiser parameters or modifiers; the body holds the collections: ``Input``, ``Step``,
 /// ``Parameter``, ``SuccessAction``, ``FailureAction`` and ``Output``.
+///
+/// Where `Workflow` names a type of your own, write `Arazzo.Workflow("adopt") { ... }` instead (see
+/// `Arazzo.Workflow.init(_:summary:description:inputs:dependsOn:vendorExtensions:_:)`).
 public struct Workflow: DocumentComponent {
     /// The Workflow Object built so far.
     public var workflow: Arazzo.Workflow
@@ -27,9 +30,7 @@ public struct Workflow: DocumentComponent {
         vendorExtensions: VendorExtensions = [:], @WorkflowBuilder _ content: () -> [any WorkflowComponent]
     ) {
         workflow = Arazzo.Workflow(
-            workflowId: workflowId, summary: summary, description: description, steps: [],
-            vendorExtensions: vendorExtensions)
-        for component in content() { component.apply(to: &workflow) }
+            workflowId, summary: summary, description: description, vendorExtensions: vendorExtensions, content)
     }
 
     /// Sets the `inputs` schema, such as `.reference("#/components/inputs/pagination")`.
@@ -48,8 +49,58 @@ public struct Workflow: DocumentComponent {
         return copy
     }
 
+    /// The `$workflows.<workflowId>.outputs.<name>` expression that reads this workflow's output `name`.
+    public func output(_ name: String) -> Arazzo.RuntimeExpression {
+        workflow.output(name)
+    }
+
     public func apply(to document: inout Arazzo.Document) {
         document.workflows.append(workflow)
+    }
+}
+
+extension Arazzo.Workflow: DocumentComponent {
+    /// Builds a Workflow Object from the parts in `content`: ``ArazzoKitBuilder/Input``, ``ArazzoKitBuilder/Step`` (or
+    /// `Arazzo.Step`), ``ArazzoKitBuilder/Parameter``, ``ArazzoKitBuilder/SuccessAction``,
+    /// ``ArazzoKitBuilder/FailureAction`` and ``ArazzoKitBuilder/Output``.
+    ///
+    /// ```swift
+    /// Arazzo.Workflow("adopt", summary: "Adopt a pet") {
+    ///     Arazzo.Step("getPet", target: .operationId("getPetById"))
+    /// }
+    /// ```
+    ///
+    /// It is the same workflow as ``ArazzoKitBuilder/Workflow``, under a name that cannot clash with a `Workflow` of
+    /// your own, and it is the model value itself. The scalar fields are its parameters; ``ArazzoKitBuilder/Input``s in
+    /// the body add properties to `inputs`.
+    ///
+    /// - Parameters:
+    ///   - workflowId: The `workflowId`.
+    ///   - summary: The `summary`.
+    ///   - description: The `description`.
+    ///   - inputs: The `inputs` schema, such as `.reference("#/components/inputs/pagination")`.
+    ///   - dependsOn: The workflows that must complete before this one.
+    ///   - vendorExtensions: `x-` fields of the object.
+    ///   - content: The workflow's parts, applied in source order.
+    public init(
+        _ workflowId: String, summary: String? = nil, description: String? = nil, inputs: Arazzo.JSONSchema? = nil,
+        dependsOn: [String] = [], vendorExtensions: VendorExtensions = [:],
+        @WorkflowBuilder _ content: () -> [any WorkflowComponent] = { [] }
+    ) {
+        self.init(
+            workflowId: workflowId, summary: summary, description: description, inputs: inputs, dependsOn: dependsOn,
+            steps: [], vendorExtensions: vendorExtensions)
+        for component in content() { component.apply(to: &self) }
+    }
+
+    /// The `$workflows.<workflowId>.outputs.<name>` expression that reads this workflow's output `name`.
+    public func output(_ name: String) -> Arazzo.RuntimeExpression {
+        Arazzo.RuntimeExpression(.workflows(workflowId: workflowId, field: .outputs, name: name, pointer: nil))
+    }
+
+    /// Appends this workflow to the document's `workflows`.
+    public func apply(to document: inout Arazzo.Document) {
+        document.workflows.append(self)
     }
 }
 
@@ -77,6 +128,19 @@ public struct Input: WorkflowComponent, ReusableComponent {
         self.name = name
         self.schema = schema
         self.isRequired = required
+    }
+
+    /// The `$inputs.<name>` expression that reads this input from a step of its workflow.
+    ///
+    /// ```swift
+    /// let petId = Input("petId", schema: ["type": "integer"], required: true)
+    /// petId
+    /// Step("getPet", operationId: "getPetById") {
+    ///     Parameter("petId", in: .path, value: petId.expression)
+    /// }
+    /// ```
+    public var expression: Arazzo.RuntimeExpression {
+        Arazzo.RuntimeExpression(.inputs(name: name, pointer: nil))
     }
 
     public func apply(to workflow: inout Arazzo.Workflow) {
@@ -110,6 +174,11 @@ public struct Output: WorkflowComponent, StepComponent {
     public init(_ name: String, _ value: Arazzo.OutputValue) {
         self.name = name
         self.value = value
+    }
+
+    /// Creates the output `name` from a runtime expression, such as one from ``Step/output(_:)``.
+    public init(_ name: String, _ expression: Arazzo.RuntimeExpression) {
+        self.init(name, .expression(expression))
     }
 
     public func apply(to workflow: inout Arazzo.Workflow) {

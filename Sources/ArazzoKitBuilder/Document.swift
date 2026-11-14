@@ -10,9 +10,9 @@ extension Arazzo.Document {
     /// }
     /// ```
     ///
-    /// The result is a plain value: encode it with `jsonData()` or `yamlString()` and check it with `validate()`.
-    /// The builder itself checks nothing, so a body without ``Info`` leaves an empty title and version, and a
-    /// missing source description or workflow is reported by `validate()` like in a decoded document.
+    /// The result is a plain value: encode it with `jsonData()` or `yamlString()` and check it with `validate()`. The
+    /// builder itself checks nothing, so a body without ``ArazzoKitBuilder/Info`` leaves an empty title and version,
+    /// and a missing source description or workflow is reported by `validate()` like in a decoded document.
     ///
     /// - Parameters:
     ///   - arazzo: The `arazzo` field; defaults to the latest version these models describe.
@@ -54,6 +54,13 @@ public struct Info: DocumentComponent {
     }
 }
 
+extension Arazzo.Info: DocumentComponent {
+    /// Sets the document's `info`. With several, the last one wins.
+    public func apply(to document: inout Arazzo.Document) {
+        document.info = self
+    }
+}
+
 /// A Source Description Object, appended to the document's `sourceDescriptions` in source order.
 public struct Source: DocumentComponent {
     /// The Source Description Object this part adds.
@@ -79,6 +86,13 @@ public struct Source: DocumentComponent {
     }
 }
 
+extension Arazzo.SourceDescription: DocumentComponent {
+    /// Appends this source description to the document's `sourceDescriptions`.
+    public func apply(to document: inout Arazzo.Document) {
+        document.sourceDescriptions.append(self)
+    }
+}
+
 /// The Components Object: reusable ``Input`` schemas, ``Parameter``s, ``SuccessAction``s and ``FailureAction``s,
 /// each keyed by its name.
 ///
@@ -100,15 +114,35 @@ public struct Components: DocumentComponent {
     public init(
         vendorExtensions: VendorExtensions = [:], @ComponentsBuilder _ content: () -> [any ReusableComponent]
     ) {
-        components = Arazzo.Components(vendorExtensions: vendorExtensions)
-        for component in content() { component.apply(to: &components) }
+        components = Arazzo.Components(vendorExtensions: vendorExtensions, content)
     }
 
     public func apply(to document: inout Arazzo.Document) {
-        for (name, value) in components.inputs { document.components.inputs[name] = value }
-        for (name, value) in components.parameters { document.components.parameters[name] = value }
-        for (name, value) in components.successActions { document.components.successActions[name] = value }
-        for (name, value) in components.failureActions { document.components.failureActions[name] = value }
-        for (name, value) in components.vendorExtensions { document.components.vendorExtensions[name] = value }
+        components.apply(to: &document)
+    }
+}
+
+extension Arazzo.Components: DocumentComponent {
+    /// Builds a Components Object from the definitions in `content`, as ``ArazzoKitBuilder/Components`` does.
+    ///
+    /// ```swift
+    /// let components = Arazzo.Components {
+    ///     Parameter("X-Trace-Id", in: .header, value: "telaio").componentKey("traceId")
+    /// }
+    /// ```
+    public init(
+        vendorExtensions: VendorExtensions = [:], @ComponentsBuilder _ content: () -> [any ReusableComponent]
+    ) {
+        self.init(vendorExtensions: vendorExtensions)
+        for component in content() { component.apply(to: &self) }
+    }
+
+    /// Adds these definitions to the document's `components`; one with a name already there replaces it.
+    public func apply(to document: inout Arazzo.Document) {
+        for (name, value) in inputs { document.components.inputs[name] = value }
+        for (name, value) in parameters { document.components.parameters[name] = value }
+        for (name, value) in successActions { document.components.successActions[name] = value }
+        for (name, value) in failureActions { document.components.failureActions[name] = value }
+        for (name, value) in vendorExtensions { document.components.vendorExtensions[name] = value }
     }
 }

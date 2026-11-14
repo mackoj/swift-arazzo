@@ -5,6 +5,7 @@
 public struct SuccessAction: WorkflowComponent, StepComponent, ReusableComponent {
     /// The action, inline or as a reference to `$components.successActions`.
     public var action: Arazzo.ReusableOr<Arazzo.SuccessAction>
+    var componentKey: String?
 
     private init(_ action: Arazzo.ReusableOr<Arazzo.SuccessAction>) {
         self.action = action
@@ -44,6 +45,15 @@ public struct SuccessAction: WorkflowComponent, StepComponent, ReusableComponent
                     vendorExtensions: vendorExtensions)))
     }
 
+    /// Sets the key of this action in ``Components``, which defaults to its `name`.
+    ///
+    /// The key is what ``reference(_:)`` names. Outside ``Components`` it has no effect.
+    public func componentKey(_ key: String) -> Self {
+        var copy = self
+        copy.componentKey = key
+        return copy
+    }
+
     /// A Reusable Object pointing at `$components.successActions.<name>`.
     public static func reference(_ name: String) -> SuccessAction {
         SuccessAction(.reusable(Arazzo.Reusable(.successActions, name)))
@@ -59,7 +69,25 @@ public struct SuccessAction: WorkflowComponent, StepComponent, ReusableComponent
 
     public func apply(to components: inout Arazzo.Components) {
         guard let action = action.inlineValue else { return }
-        components.successActions[action.name] = action
+        components.successActions[componentKey ?? action.name] = action
+    }
+}
+
+extension Arazzo.SuccessAction: WorkflowComponent, StepComponent, ReusableComponent {
+    /// Appends this action to the workflow's `successActions`.
+    public func apply(to workflow: inout Arazzo.Workflow) {
+        workflow.successActions.append(.inline(self))
+    }
+
+    /// Appends this action to the step's `onSuccess`.
+    public func apply(to step: inout Arazzo.Step) {
+        step.onSuccess.append(.inline(self))
+    }
+
+    /// Defines `components.successActions.<name>`. Use ``ArazzoKitBuilder/SuccessAction/componentKey(_:)`` for a key
+    /// other than the name.
+    public func apply(to components: inout Arazzo.Components) {
+        components.successActions[name] = self
     }
 }
 
@@ -70,6 +98,7 @@ public struct SuccessAction: WorkflowComponent, StepComponent, ReusableComponent
 public struct FailureAction: WorkflowComponent, StepComponent, ReusableComponent {
     /// The action, inline or as a reference to `$components.failureActions`.
     public var action: Arazzo.ReusableOr<Arazzo.FailureAction>
+    var componentKey: String?
 
     private init(_ action: Arazzo.ReusableOr<Arazzo.FailureAction>) {
         self.action = action
@@ -131,6 +160,15 @@ public struct FailureAction: WorkflowComponent, StepComponent, ReusableComponent
                     vendorExtensions: vendorExtensions)))
     }
 
+    /// Sets the key of this action in ``Components``, which defaults to its `name`.
+    ///
+    /// The key is what ``reference(_:)`` names. Outside ``Components`` it has no effect.
+    public func componentKey(_ key: String) -> Self {
+        var copy = self
+        copy.componentKey = key
+        return copy
+    }
+
     /// A Reusable Object pointing at `$components.failureActions.<name>`.
     public static func reference(_ name: String) -> FailureAction {
         FailureAction(.reusable(Arazzo.Reusable(.failureActions, name)))
@@ -146,7 +184,25 @@ public struct FailureAction: WorkflowComponent, StepComponent, ReusableComponent
 
     public func apply(to components: inout Arazzo.Components) {
         guard let action = action.inlineValue else { return }
-        components.failureActions[action.name] = action
+        components.failureActions[componentKey ?? action.name] = action
+    }
+}
+
+extension Arazzo.FailureAction: WorkflowComponent, StepComponent, ReusableComponent {
+    /// Appends this action to the workflow's `failureActions`.
+    public func apply(to workflow: inout Arazzo.Workflow) {
+        workflow.failureActions.append(.inline(self))
+    }
+
+    /// Appends this action to the step's `onFailure`.
+    public func apply(to step: inout Arazzo.Step) {
+        step.onFailure.append(.inline(self))
+    }
+
+    /// Defines `components.failureActions.<name>`. Use ``ArazzoKitBuilder/FailureAction/componentKey(_:)`` for a key
+    /// other than the name.
+    public func apply(to components: inout Arazzo.Components) {
+        components.failureActions[name] = self
     }
 }
 

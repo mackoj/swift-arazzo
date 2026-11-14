@@ -53,8 +53,16 @@ It builds what you wrote. It does not validate, throw or trap: call `validate()`
 the last value written, so two `Output("name", ...)` in one step, or two components with one name, leave one entry.
 Validation cannot see the earlier one.
 
-The type names are top-level and can collide with your own `Workflow` or `Step`. Qualify them as
-`ArazzoKitBuilder.Step` when they do.
+### Model types and typed references
+
+The type names are top-level and can collide with your own `Workflow` or `Step`. The model types take the same
+bodies under names that cannot collide, and are the model values themselves: `Arazzo.Workflow("adopt") { ... }`,
+`Arazzo.Step("getPet", target: .operationId("getPetById")) { ... }` and `Arazzo.Components { ... }`. Model values,
+such as an `Arazzo.Parameter` or an `Arazzo.Criterion`, go into any body that takes the matching part.
+
+``Input/expression``, ``Step/output(_:)`` and ``Workflow/output(_:)`` write the `$inputs`, `$steps` and `$workflows`
+expressions that read them, so renaming the input or step renames every reference. They cannot check that the output
+exists: `validate()` warns when a step does not declare it.
 
 ## Topics
 

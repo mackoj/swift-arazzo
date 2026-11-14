@@ -312,6 +312,123 @@ struct BuilderTests {
         #expect(step.outputs == ["id": "$response.body#/uuid"])
     }
 
+    @Test func modelInitialisersBuildTheSameDocument() {
+        // Given the README document written with the top-level builder types
+        let topLevel = Arazzo.Document {
+            Info(title: "Pets", version: "1.0.0")
+            Source("petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+            Workflow("adopt") {
+                Input("petId", schema: ["type": "integer"], required: true)
+                Step("getPet", operationId: "getPetById") {
+                    Parameter("petId", in: .path, value: "$inputs.petId")
+                    SuccessCriterion("$statusCode == 200")
+                    OnFailure.retry("retry", after: 2, limit: 3)
+                    Output("name", "$response.body#/name")
+                }
+                .description("Fetch the pet")
+                Output("adoptedName", "$steps.getPet.outputs.name")
+            }
+        }
+
+        // When it is written with the model types' initialisers and model values in the bodies
+        let model = Arazzo.Document {
+            Arazzo.Info(title: "Pets", version: "1.0.0")
+            Arazzo.SourceDescription(name: "petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+            Arazzo.Workflow("adopt") {
+                Input("petId", schema: ["type": "integer"], required: true)
+                Arazzo.Step("getPet", target: .operationId("getPetById"), description: "Fetch the pet") {
+                    Arazzo.Parameter(name: "petId", in: .path, value: "$inputs.petId")
+                    Arazzo.Criterion.simple("$statusCode == 200")
+                    Arazzo.FailureAction.retry(name: "retry", after: 2, limit: 3)
+                    Output("name", "$response.body#/name")
+                }
+                Output("adoptedName", "$steps.getPet.outputs.name")
+            }
+        }
+
+        // Then both are the same value
+        #expect(model == topLevel)
+    }
+
+    @Test func modelInitialisersAreTheModelValues() {
+        // Given scalar fields passed to the model initialisers
+        // When a step and a workflow are built outside a document
+        let step = Arazzo.Step(
+            "listen", target: .channelPath("#/channels/orders"), timeout: 5_000, correlationId: "$message.header.id",
+            action: .receive, dependsOn: ["send"]
+        ) {
+            Arazzo.RequestBody(contentType: "application/json")
+        }
+        let workflow = Arazzo.Workflow("orders", inputs: .reference("#/components/inputs/order"), dependsOn: ["auth"])
+
+        // Then they are model values with those fields, and no steps or criteria they were not given
+        #expect(step.timeout == 5_000)
+        #expect(step.correlationId == "$message.header.id")
+        #expect(step.action == .receive)
+        #expect(step.dependsOn == ["send"])
+        #expect(step.requestBody?.contentType == "application/json")
+        #expect(step.successCriteria == nil)
+        #expect(workflow.inputs == .reference("#/components/inputs/order"))
+        #expect(workflow.dependsOn == ["auth"])
+        #expect(workflow.steps.isEmpty)
+    }
+
+    @Test func typedReferencesWriteTheExpressions() {
+        // Given a workflow whose step and output read an input and a step output through handles
+        let typed = Arazzo.Document {
+            Workflow("adopt") {
+                let petId = Input("petId", schema: ["type": "integer"], required: true)
+                petId
+                let getPet = Step("getPet", operationId: "getPetById") {
+                    Parameter("petId", in: .path, value: petId.expression)
+                    Output("name", "$response.body#/name")
+                }
+                getPet
+                Output("adoptedName", getPet.output("name"))
+            }
+            Workflow("report") {
+                Arazzo.Step("adopt", target: .workflowId("adopt"))
+                Output("name", Arazzo.Workflow("adopt").output("adoptedName"))
+            }
+        }
+
+        // When the same document is written with expression strings
+        let strings = Arazzo.Document {
+            Workflow("adopt") {
+                Input("petId", schema: ["type": "integer"], required: true)
+                Step("getPet", operationId: "getPetById") {
+                    Parameter("petId", in: .path, value: "$inputs.petId")
+                    Output("name", "$response.body#/name")
+                }
+                Output("adoptedName", "$steps.getPet.outputs.name")
+            }
+            Workflow("report") {
+                Step("adopt", workflowId: "adopt")
+                Output("name", "$workflows.adopt.outputs.adoptedName")
+            }
+        }
+
+        // Then the handles wrote the same expressions
+        #expect(typed == strings)
+    }
+
+    @Test func componentKeysCanDifferFromNames() {
+        // Given definitions whose component keys are not their names
+        // When the Components Object is built
+        let components = Arazzo.Components {
+            Parameter("X-Trace-Id", in: .header, value: "telaio").componentKey("traceId")
+            SuccessAction.end("done").componentKey("finish")
+            FailureAction.retry("retry", limit: 3).componentKey("backoff")
+            Arazzo.Parameter(name: "page", in: .query, value: 1)
+        }
+
+        // Then each is stored under its key, and a model value under its name
+        #expect(Array(components.parameters.keys) == ["traceId", "page"])
+        #expect(components.parameters["traceId"]?.name == "X-Trace-Id")
+        #expect(components.successActions["finish"] == .end(name: "done"))
+        #expect(components.failureActions["backoff"] == .retry(name: "retry", limit: 3))
+    }
+
     @Test func builtDocumentsAreValidatedLikeDecodedOnes() {
         // Given a built workflow whose output references a step it does not have
         let document = Arazzo.Document {
