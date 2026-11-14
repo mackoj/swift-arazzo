@@ -16,6 +16,8 @@ let package = Package(
         .library(name: "ArazzoKit", targets: ["ArazzoKit"]),
         // YAML support (decoding/encoding) built on Yams, when the `YAML` trait is enabled.
         .library(name: "ArazzoKitYAML", targets: ["ArazzoKitYAML"]),
+        // A result-builder DSL that writes Arazzo documents. Depends only on ArazzoKit.
+        .library(name: "ArazzoKitBuilder", targets: ["ArazzoKitBuilder"]),
     ],
     traits: [
         .trait(
@@ -42,11 +44,16 @@ let package = Package(
                 .product(name: "Yams", package: "Yams", condition: .when(traits: ["YAML"])),
             ]
         ),
+        .target(
+            name: "ArazzoKitBuilder",
+            dependencies: ["ArazzoKit"]
+        ),
         .testTarget(
             name: "ArazzoKitTests",
             dependencies: [
                 "ArazzoKit",
                 "ArazzoKitYAML",
+                "ArazzoKitBuilder",
             ],
             exclude: ["Fixtures"]
         ),

@@ -296,7 +296,7 @@ try Arazzo.Condition(
       <div class="feature">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg></div>
         <h3>Linux first-class, Swift 6 ready</h3>
-        <p>Strict concurrency, every type <code>Sendable</code> and <code>Hashable</code>. The core module depends only on swift-jsonpath and uses FoundationEssentials on Linux, with no ICU. YAML support is an optional package trait.</p>
+        <p>Strict concurrency, every type <code>Sendable</code> and <code>Hashable</code>. The core module depends only on swift-jsonpath and uses FoundationEssentials on Linux, with no ICU. YAML support is an optional package trait, and the result-builder DSL a separate product.</p>
       </div>
     </div>
   </div>
@@ -311,6 +311,7 @@ try Arazzo.Condition(
       <div class="tablist" role="tablist" aria-label="Examples">
         <button role="tab" id="tab-read" aria-controls="panel-read" aria-selected="true">Read</button>
         <button role="tab" id="tab-build" aria-controls="panel-build" aria-selected="false">Build</button>
+        <button role="tab" id="tab-builder" aria-controls="panel-builder" aria-selected="false">Builder</button>
         <button role="tab" id="tab-validate" aria-controls="panel-validate" aria-selected="false">Validate</button>
         <button role="tab" id="tab-evaluate" aria-controls="panel-evaluate" aria-selected="false">Evaluate</button>
         <button role="tab" id="tab-resolve" aria-controls="panel-resolve" aria-selected="false">Resolve</button>
@@ -360,6 +361,27 @@ if case .selector(let selector)? = step.outputs["petId"] {
 
 let json = try document.jsonData(prettyPrinted: true)
 let yaml = try document.yamlString()</code></pre></div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-builder" aria-labelledby="tab-builder" hidden>
+        <p>Or write the same document with <code>ArazzoKitBuilder</code>'s result builders: no wrapping, and <code>if</code>, <code>switch</code> and <code>for</code> in every body. The result is an equal <code>Arazzo.Document</code>.</p>
+        <div class="code"><pre><code class="swift" data-readme>import ArazzoKitBuilder
+
+let document = Arazzo.Document {
+    Info(title: "Pets", version: "1.0.0")
+    Source("petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+
+    Workflow("adopt") {
+        Input("petId", schema: ["type": "integer"], required: true)
+        Step("getPet", operationId: "getPetById") {
+            Parameter("petId", in: .path, value: "$inputs.petId")
+            SuccessCriterion("$statusCode == 200")
+            OnFailure.retry("retry", after: 2, limit: 3)
+            Output("name", "$response.body#/name")
+        }
+        Output("adoptedName", "$steps.getPet.outputs.name")
+    }
+}</code></pre></div>
       </div>
 
       <div class="panel" role="tabpanel" id="panel-validate" aria-labelledby="tab-validate" hidden>
@@ -472,6 +494,7 @@ targets: [
     .target(name: "MyTool", dependencies: [
         .product(name: "ArazzoKit", package: "swift-arazzo"),
         .product(name: "ArazzoKitYAML", package: "swift-arazzo"), // optional
+        .product(name: "ArazzoKitBuilder", package: "swift-arazzo"), // optional
     ]),
 ]</code></pre>
       </div>
@@ -480,6 +503,7 @@ targets: [
           <li><strong>Swift 6.0+</strong> on Linux, macOS 13+, iOS 16+, tvOS 16+, watchOS 9+ and visionOS 1+.</li>
           <li><strong><code>ArazzoKit</code></strong>: models, expressions, evaluation and validation. Depends only on swift-jsonpath.</li>
           <li><strong><code>ArazzoKitYAML</code></strong>: YAML decoding and encoding on Yams, behind the <code>YAML</code> package trait (on by default). Turn it off with <code>traits: []</code> to skip building Yams.</li>
+          <li><strong><code>ArazzoKitBuilder</code></strong>: a result-builder DSL that writes documents in Swift. Depends only on <code>ArazzoKit</code>.</li>
           <li>API reference on the <a href="https://swiftpackageindex.com/mackoj/swift-arazzo/documentation/arazzokit">Swift Package Index</a>; guide and examples in the <a href="https://github.com/mackoj/swift-arazzo#readme">README</a>.</li>
         </ul>
         <div class="cta">

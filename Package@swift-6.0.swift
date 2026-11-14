@@ -17,6 +17,8 @@ let package = Package(
         .library(name: "ArazzoKit", targets: ["ArazzoKit"]),
         // Optional YAML support (decoding/encoding) built on Yams.
         .library(name: "ArazzoKitYAML", targets: ["ArazzoKitYAML"]),
+        // A result-builder DSL that writes Arazzo documents. Depends only on ArazzoKit.
+        .library(name: "ArazzoKitBuilder", targets: ["ArazzoKitBuilder"]),
     ],
     dependencies: [
         .package(url: "https://github.com/mackoj/swift-jsonpath.git", from: "0.0.1"),
@@ -39,11 +41,16 @@ let package = Package(
                 .define("YAML")
             ]
         ),
+        .target(
+            name: "ArazzoKitBuilder",
+            dependencies: ["ArazzoKit"]
+        ),
         .testTarget(
             name: "ArazzoKitTests",
             dependencies: [
                 "ArazzoKit",
                 "ArazzoKitYAML",
+                "ArazzoKitBuilder",
             ],
             exclude: ["Fixtures"]
         ),

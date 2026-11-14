@@ -24,6 +24,10 @@ _Avoid_: API, service, source document
 An `x-`prefixed field allowed on every extensible object, kept as `JSONValue` in key order.
 _Avoid_: custom field, metadata
 
+**Document builder** (`ArazzoKitBuilder`):
+The result-builder DSL that writes a Document in Swift (`Arazzo.Document { ... }`). It produces a plain `Arazzo.Document` and checks nothing; `validate()` reports problems as for a decoded Document. Its `Workflow`, `Step`, `Parameter` and other types are top-level, not under `Arazzo`.
+_Avoid_: DSL document, builder document (the result is just a Document)
+
 ## Workflows and steps
 
 **Workflow** (`Arazzo.Workflow`):

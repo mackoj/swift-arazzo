@@ -33,6 +33,8 @@ cannot express.
   and an API for custom rules.
 - **Resolution helpers**: reusable components, effective parameters/actions after workflow-level
   overrides, and a dependency-respecting step execution order.
+- A **result-builder DSL** (`ArazzoKitBuilder`) that writes documents in Swift with `if`, `for` and
+  helper functions, producing a plain `Arazzo.Document`.
 - Optional **YAML** support (`ArazzoKitYAML`, built on [Yams](https://github.com/jpsim/Yams)) that
   preserves key order, behind the `YAML` package trait (enabled by default).
 
@@ -46,6 +48,7 @@ targets: [
     .target(name: "MyTool", dependencies: [
         .product(name: "ArazzoKit", package: "swift-arazzo"),
         .product(name: "ArazzoKitYAML", package: "swift-arazzo"), // optional
+        .product(name: "ArazzoKitBuilder", package: "swift-arazzo"), // optional
     ]),
 ]
 ```
@@ -66,6 +69,7 @@ Swift 6.0 has no package traits, so it always builds YAML support (`Package@swif
 |-----------------|------------------------------------|------------------------------------------|
 | `ArazzoKit`     | [swift-jsonpath](https://github.com/mackoj/swift-jsonpath), FoundationEssentials | Models, expressions, evaluation, validation |
 | `ArazzoKitYAML` | `ArazzoKit`, Yams (`YAML` trait)   | YAML decoding/encoding                   |
+| `ArazzoKitBuilder` | `ArazzoKit`                     | Result-builder DSL for writing documents |
 
 ## Usage
 
@@ -164,6 +168,65 @@ let document = Arazzo.Document(
 let json = try document.jsonData(prettyPrinted: true)
 let yaml = try document.yamlString()
 ```
+
+### Building with the result builder
+
+`ArazzoKitBuilder` writes the same document with result builders. The result is a plain
+`Arazzo.Document`, equal to the one above, so encoding and `validate()` work on it unchanged:
+
+```swift
+import ArazzoKitBuilder
+
+let document = Arazzo.Document {
+    Info(title: "Pets", version: "1.0.0")
+    Source("petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+
+    Workflow("adopt") {
+        Input("petId", schema: ["type": "integer"], required: true)
+        Step("getPet", operationId: "getPetById") {
+            Parameter("petId", in: .path, value: "$inputs.petId")
+            SuccessCriterion("$statusCode == 200")
+            OnFailure.retry("retry", after: 2, limit: 3)
+            Output("name", "$response.body#/name")
+        }
+        Output("adoptedName", "$steps.getPet.outputs.name")
+    }
+}
+```
+
+Bodies accept `if`, `switch`, `for` and `if #available`, so a document can be generated from data,
+and a helper that returns a `Step` or an `[any StepComponent]` group drops into any body:
+
+```swift
+let smoke = Arazzo.Document {
+    Info(title: "Smoke tests", version: "1.0.0")
+    Source("petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+
+    Workflow("smoke") {
+        for endpoint in endpoints {
+            Step(endpoint.id, operationId: endpoint.operationId) {
+                SuccessCriterion("$statusCode == 200")
+                if endpoint.isFlaky {
+                    OnFailure.retry("retry", after: 1, limit: 3)
+                }
+            }
+            .description(endpoint.summary)
+        }
+    }
+
+    Components {
+        Parameter("page", in: .query, value: 1)               // components.parameters.page
+        FailureAction.retry("backoff", after: 5, limit: 10)   // components.failureActions.backoff
+    }
+}
+```
+
+Collections go in the body; scalar fields go in the initialiser or a modifier (`.description`,
+`.timeout`, `.dependsOn`, `.async(.receive, correlationId:)` on a step, `.inputs` and `.dependsOn` on a
+workflow). `Parameter.reference("page", value: 2)` and `OnFailure.reference("backoff")` become
+Reusable Objects. The builder checks nothing: `validate()` reports problems as for a decoded
+document. A keyed field keeps the last value written, so of two `Output("name", …)` in one step only
+the second remains. The types are top-level: write `ArazzoKitBuilder.Step` if one clashes with yours.
 
 ### Validation
 

@@ -47,16 +47,21 @@ extension Rule {
 
     static let importsStayWithinBudget = Rule(
         id: "imports-stay-within-budget",
-        title: "ArazzoKit imports only JSONPath and Foundation; Yams is imported only under `#if YAML`.",
+        title: """
+            ArazzoKit imports only JSONPath and Foundation, ArazzoKitBuilder only ArazzoKit; Yams is imported only \
+            under `#if YAML`.
+            """,
         category: .platforms,
         rationale: """
             ArazzoKit's dependency budget is swift-jsonpath alone, and YAML support stays behind the `YAML` package \
             trait so a client that turns the trait off never builds Yams (CONSTRAINTS.md, "ArazzoKit dependency \
-            budget"). An extra import in ArazzoKit is an extra dependency for every client.
+            budget"). An extra import in ArazzoKit is an extra dependency for every client. ArazzoKitBuilder is a \
+            layer over ArazzoKit's value types: anything more would cost its users a dependency they did not choose.
             """,
         howToFix: """
             Implement the feature with the standard library, FoundationEssentials or JSONPath. Code that needs Yams \
-            belongs in ArazzoKitYAML, inside its `#if YAML` block. A new dependency is a decision for the maintainer, \
+            belongs in ArazzoKitYAML, inside its `#if YAML` block, and ArazzoKitBuilder reaches JSONPath through \
+            ArazzoKit's re-export. A new dependency is a decision for the maintainer, \
             recorded in `Package.swift`, `Package@swift-6.0.swift` and CONSTRAINTS.md first.
             """,
         badExample: """
