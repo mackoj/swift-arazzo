@@ -23,7 +23,7 @@ Run these before handing back a code change; each must pass.
 | Public API | 0 breaking changes against the base branch, unless intended and called out in the pull request | `swift package diagnose-api-breaking-changes main` |
 | Documentation | 0 DocC warnings for the `.spi.yml` targets | Soundness workflow's documentation check (CI) |
 | Workflows and YAML | 0 findings | `actionlint`, `zizmor .github/workflows` and `yamllint --strict .` |
-| ArazzoKit dependency budget | `ArazzoKit` depends only on swift-jsonpath's `JSONPath`, and Yams stays behind the `YAML` trait; `import Foundation` appears only as the `#else` of `#if canImport(FoundationEssentials)` | `Package.swift` review and `grep -rn -B3 '^import Foundation$' Sources/ArazzoKit` |
+| ArazzoKit dependency budget | `ArazzoKit` depends only on swift-jsonpath's `JSONPath`, `ArazzoKitBuilder` only on `ArazzoKit`, and Yams stays behind the `YAML` trait; `import Foundation` appears only as the `#else` of `#if canImport(FoundationEssentials)` | `Package.swift` review and `grep -rn -B3 '^import Foundation$' Sources/ArazzoKit` |
 
 Linux and Swift 6.0 are where a change most often breaks (no Objective-C Foundation, an older compiler and Swift Testing): CI runs Swift 6.0, 6.1 and 6.2 in Linux containers. Check the oldest one locally with Apple's `container` CLI (`container system start` once), which builds in its own scratch path:
 

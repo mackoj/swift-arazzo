@@ -65,8 +65,10 @@ import Testing
     @Test func importsOverBudgetAreFound() {
         let found = Detect.importsOverBudget(
             arazzoKit: scope("import JSONPath\nimport Yams\nimport OrderedCollections"),
-            arazzoKitYAML: scope("import ArazzoKit\nimport Yams", at: "Sources/ArazzoKitYAML/ArazzoYAML.swift"))
-        #expect(found.map(\.node.moduleName) == ["Yams", "OrderedCollections", "Yams"])
+            arazzoKitYAML: scope("import ArazzoKit\nimport Yams", at: "Sources/ArazzoKitYAML/ArazzoYAML.swift"),
+            arazzoKitBuilder: scope(
+                "import ArazzoKit\nimport ArazzoKitYAML", at: "Sources/ArazzoKitBuilder/Builders.swift"))
+        #expect(found.map(\.node.moduleName) == ["Yams", "OrderedCollections", "Yams", "ArazzoKitYAML"])
     }
 
     @Test func importsWithinBudgetPass() {
@@ -89,7 +91,8 @@ import Testing
                 import FoundationEssentials
                 #endif
                 #endif
-                """, at: "Sources/ArazzoKitYAML/ArazzoYAML.swift"))
+                """, at: "Sources/ArazzoKitYAML/ArazzoYAML.swift"),
+            arazzoKitBuilder: scope("@_exported import ArazzoKit", at: "Sources/ArazzoKitBuilder/Builders.swift"))
         #expect(found.isEmpty)
     }
 

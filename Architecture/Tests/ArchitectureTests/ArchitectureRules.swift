@@ -18,7 +18,8 @@ struct ArchitectureRules {
     @Test func importsStayWithinBudget() throws {
         let sources = try Self.sources()
         let found = Detect.importsOverBudget(
-            arazzoKit: sources.in("Sources/ArazzoKit"), arazzoKitYAML: sources.in("Sources/ArazzoKitYAML"))
+            arazzoKit: sources.in("Sources/ArazzoKit"), arazzoKitYAML: sources.in("Sources/ArazzoKitYAML"),
+            arazzoKitBuilder: sources.in("Sources/ArazzoKitBuilder"))
         expectNone(found, rule: .importsStayWithinBudget)
     }
 

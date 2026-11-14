@@ -1,4 +1,5 @@
 import ArazzoKit
+import ArazzoKitBuilder
 import ArazzoKitYAML
 import Foundation
 import Testing
@@ -27,7 +28,7 @@ struct ReadmeTests {
         }
 
         // Then there are blocks, and each of their lines is in the README
-        #expect(blocks.count == 6)
+        #expect(blocks.count == 7)
         #expect(strayLines == [])
     }
 
@@ -55,6 +56,58 @@ struct ReadmeTests {
         var names: [String] = []
         for case .inline(let parameter) in step.parameters { names.append(parameter.name) }
         #expect(names == ["status", "Authorization"])
+    }
+
+    @Test func buildingWithTheResultBuilder() throws {
+        let document = Arazzo.Document {
+            Info(title: "Pets", version: "1.0.0")
+            Source("petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+
+            Workflow("adopt") {
+                Input("petId", schema: ["type": "integer"], required: true)
+                Step("getPet", operationId: "getPetById") {
+                    Parameter("petId", in: .path, value: "$inputs.petId")
+                    SuccessCriterion("$statusCode == 200")
+                    OnFailure.retry("retry", after: 2, limit: 3)
+                    Output("name", "$response.body#/name")
+                }
+                Output("adoptedName", "$steps.getPet.outputs.name")
+            }
+        }
+        #expect(document.validate().errors.isEmpty)
+
+        struct Endpoint {
+            let id, operationId, summary: String
+            let isFlaky: Bool
+        }
+        let endpoints = [
+            Endpoint(id: "list", operationId: "listPets", summary: "List pets", isFlaky: false),
+            Endpoint(id: "get", operationId: "getPet", summary: "Get a pet", isFlaky: true),
+        ]
+        let smoke = Arazzo.Document {
+            Info(title: "Smoke tests", version: "1.0.0")
+            Source("petstore", url: "https://example.com/openapi.yaml", type: .openapi)
+
+            Workflow("smoke") {
+                for endpoint in endpoints {
+                    Step(endpoint.id, operationId: endpoint.operationId) {
+                        SuccessCriterion("$statusCode == 200")
+                        if endpoint.isFlaky {
+                            OnFailure.retry("retry", after: 1, limit: 3)
+                        }
+                    }
+                    .description(endpoint.summary)
+                }
+            }
+
+            Components {
+                Parameter("page", in: .query, value: 1)  // components.parameters.page
+                FailureAction.retry("backoff", after: 5, limit: 10)  // components.failureActions.backoff
+            }
+        }
+        #expect(smoke.workflows[0].steps.map(\.onFailure.count) == [0, 1])
+        #expect(Array(smoke.components.parameters.keys) == ["page"])
+        #expect(smoke.validate().errors.isEmpty)
     }
 
     @Test func expressionsAndEvaluation() throws {

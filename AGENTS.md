@@ -15,7 +15,7 @@ Read `CONSTRAINTS.md` before writing code. Do not weaken it to make a change pas
 - **Smallest diff.** Every changed line traces to the request. Match the surrounding file's idioms even where you would write it differently. Remove what your change orphans; mention, rather than delete, pre-existing dead code.
 
 ## Docs travel with code
-`README.md` is the user documentation and DocC comments are the API reference (Swift Package Index builds docs for `ArazzoKit` and `ArazzoKitYAML`, see `.spi.yml`). In the same change as any API or behaviour change:
+`README.md` is the user documentation and DocC comments are the API reference (Swift Package Index builds docs for `ArazzoKit`, `ArazzoKitYAML` and `ArazzoKitBuilder`, see `.spi.yml`). In the same change as any API or behaviour change:
 - Update the doc comment on every public declaration you touch.
 - Update every README section, example and table the change affects (`grep -n "<Symbol>" README.md`), including the specification-coverage table and the built-in rules list.
 - `site/index.html` is the landing page (GitHub Pages, `.github/workflows/pages.yml`). Its code tour, install snippet, feature claims and benchmark table repeat the README and the release notes: update them in the same change.

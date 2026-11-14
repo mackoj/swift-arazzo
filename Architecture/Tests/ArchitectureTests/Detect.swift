@@ -33,15 +33,22 @@ enum Detect {
     /// What `ArazzoKit` may import. Its only package dependency is swift-jsonpath.
     static let arazzoKitModules: Set<String> = ["JSONPath", "FoundationEssentials", "Foundation"]
 
-    /// Imports in `ArazzoKit` outside its budget, and `import Yams` in `ArazzoKitYAML` outside `#if YAML`.
-    static func importsOverBudget(arazzoKit: Scope, arazzoKitYAML: Scope) -> [Match<ImportDeclSyntax>] {
+    /// What `ArazzoKitBuilder` may import: it is a layer over `ArazzoKit`, which re-exports `JSONPath`.
+    static let arazzoKitBuilderModules: Set<String> = ["ArazzoKit"]
+
+    /// Imports in `ArazzoKit` or `ArazzoKitBuilder` outside their budget, and `import Yams` in `ArazzoKitYAML` outside
+    /// `#if YAML`.
+    static func importsOverBudget(
+        arazzoKit: Scope, arazzoKitYAML: Scope, arazzoKitBuilder: Scope
+    ) -> [Match<ImportDeclSyntax>] {
         let kit = arazzoKit.imports.filter { !arazzoKitModules.contains($0.node.moduleName) }
+        let builder = arazzoKitBuilder.imports.filter { !arazzoKitBuilderModules.contains($0.node.moduleName) }
         let yams = arazzoKitYAML.imports(of: "Yams").filter { match in
             !match.node.enclosingIfConfigClauses.contains {
                 !$0.isElse && $0.condition?.trimmedDescription == "YAML"
             }
         }
-        return kit + yams
+        return kit + yams + builder
     }
 
     /// Public structs and enums that are not declared `Hashable` and `Sendable`.
