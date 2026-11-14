@@ -42,7 +42,7 @@ cannot express.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.1"),
+    .package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.2"),
 ],
 targets: [
     .target(name: "MyTool", dependencies: [
@@ -60,7 +60,7 @@ enabled by default. With Swift 6.1+, opt out to avoid building Yams; `ArazzoKitY
 JSON remains available through `ArazzoKit`:
 
 ```swift
-.package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.1", traits: []),
+.package(url: "https://github.com/mackoj/swift-arazzo.git", from: "0.1.2", traits: []),
 ```
 
 Swift 6.0 has no package traits, so it always builds YAML support (`Package@swift-6.0.swift`).
